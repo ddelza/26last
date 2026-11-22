@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>설문 결과 확인하기</title>
+<link rel="stylesheet" href="common.css?v=1">
+<style>
+.part { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
+.part div { background: #f8f9fa; border-radius: 10px; padding: 8px 4px; font-size: 0.74rem; color: #555; }
+.part b { display: block; font-size: 1.15rem; color: var(--text); }
+.qhead { font-size: 1.05rem; font-weight: 800; line-height: 1.5; margin: 4px 0; }
+.qsub { font-size: 0.76rem; color: var(--text-muted); margin-bottom: 10px; }
+.gf { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0; }
+.gf button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; }
+.gf button.on { background: var(--stage); color: #fff; border-color: var(--stage); }
+.mine-tag { display: inline-block; background: var(--stage); color: #fff; font-size: 0.7rem; font-weight: 800; border-radius: 6px; padding: 1px 7px; }
+.think ol { padding-left: 20px; margin: 4px 0 0; font-size: 0.86rem; line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="session.js?v=1"></script>
+<script src="lab.js?v=1"></script>
+<script>
+let items = [], resps = {}, cur = 0, grade = '', myKey = null, roster = {};
+
+function render() {
+  const it = items[cur], mine = it.key === myKey;
+  const respondents = Object.values(resps).filter(r => r && r.answers && Object.keys(r.answers).length);
+  const cnt = g => respondents.filter(r => String(r.grade) === String(g)).length;
+  const tot = g => Object.values(roster).filter(s => String(s.grade) === String(g)).length;
+  document.getElementById('main').innerHTML = `
+    <div class="card"><h2>📡 전교생 참여 현황</h2><div class="part">
+      <div><b>${respondents.length}</b>전체</div>${[1, 2, 3].map(g => `<div><b>${cnt(g)}</b>${g}학년 <small>/ ${tot(g)}</small></div>`).join('')}</div></div>
+
+    <div class="card">
+      <label class="field-label">어떤 질문의 결과를 볼까요?</label>
+      <select id="sel">${items.map((x, i) => `<option value="${i}" ${i === cur ? 'selected' : ''}>${x.key === myKey ? '⭐ 우리 모둠 — ' : ''}${LAB.banShort(x.ban)} ${x.out.no}모둠 · ${LAB.esc(x.q.q.slice(0, 40))}</option>`).join('')}</select>
+    </div>
+
+    <div class="card">
+      ${mine ? '<span class="mine-tag">⭐ 우리 모둠 질문</span>' : ''}
+      <div class="qhead">${LAB.nl2br(it.q.q)}</div>
+      <div class="qsub">${LAB.esc(LAB.banShort(it.ban))} ${it.out.no}모둠 · ${LAB.QTYPES[it.out.which].icon} ${LAB.QTYPES[it.out.which].name} · 문제: ${LAB.esc(it.out.title)}</div>
+      <div class="gf">${['', 1, 2, 3].map(g => `<button data-g="${g}" class="${String(grade) === String(g) ? 'on' : ''}">${g ? g + '학년만' : '전교생 전체'}</button>`).join('')}</div>
+      ${LAB.resultHtml(it.q, resps, it.key, { grade })}
+      <button class="btn ghost small" style="margin-top:12px" id="csv">⬇️ 이 질문 응답 내려받기 (엑셀·CSV)</button>
+    </div>
+
+    ${mine ? `<div class="card think"><h2>🔎 결과를 보며 모둠에서 이야기해 봐요</h2><ol>
+      <li>가장 많은 사람이 고른 답(또는 가장 많이 나온 말)은 무엇이고, <b>몇 %</b>인가요?</li>
+      <li><b>예상과 같았던 점</b>과 <b>예상과 달랐던 점</b>은?</li>
+      <li><b>학년별로 차이</b>가 있나요? 왜 그럴까요?</li>
+      <li>이 결과로 "우리 문제가 진짜 있다 / 이런 해결책을 원한다"고 <b>말할 수 있나요?</b> 부족한 점(한계)은?</li>
+      <li>결과를 보고 떠오른 <b>해결 방안</b>은? → <a href="s4-report.html">4단계 보고서</a>에 바로 적어요.</li></ol></div>` : ''}`;
+  document.getElementById('sel').onchange = e => { cur = +e.target.value; render(); };
+  document.querySelectorAll('.gf button').forEach(b => b.onclick = () => { grade = b.dataset.g; render(); });
+  document.getElementById('csv').onclick = () => {
+    const q = it.q, rows = [['학년', '반', '응답']];
+    Object.values(resps).forEach(r => {
+      const a = r && r.answers && r.answers[it.key];
+      if (!LAB.isAnswered(q, a)) return;
+      let t = q.type === 'open' ? a : (a.sel || []).map(i => q.options[i]).concat(a.etc && a.etc.trim() ? ['기타: ' + a.etc.trim()] : []).join(' / ');
+      rows.push([r.grade, r.ban, t]);
+    });
+    rows.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
+    LAB.downloadCsv(`설문결과_${it.ban}_${it.out.no}모둠.csv`, rows);
+  };
+}
+
+LAB.start({ stage: 3, title: '설문 결과 확인하기', subtitle: '우리 질문에 전교생이 어떻게 답했는지 숫자와 말로 확인해요.' }).then(async () => {
+  const [sc, fin, rs, ro] = await Promise.all([LAB.get('survey/_config'), LAB.get('final'), LAB.get('resp'), LAB.roster()]);
+  roster = ro;
+  if (!LAB.student.isTeacher && !(sc && sc.results)) {
+    document.getElementById('main').innerHTML = '<div class="card center"><div style="font-size:2.4rem">🔒</div><b>아직 결과가 공개되지 않았어요.</b><p class="hint">전교생 설문이 끝나면 선생님이 결과를 열어 줄 거예요.</p></div>';
+    return;
+  }
+  items = LAB.surveyItems(fin, LAB.student.isTeacher && LAB.qs('test') === '1'); resps = rs || {};
+  if (!items.length) { document.getElementById('main').innerHTML = '<div class="empty-state">설문에 나간 질문이 없어요.</div>'; return; }
+  if (!LAB.student.isTeacher) {
+    const r = await LAB.resolveMyGroup();
+    if (r.group) { myKey = LAB.qkey(r.ban, r.group.id); const i = items.findIndex(x => x.key === myKey); if (i >= 0) cur = i; }
+  } else if (LAB.qs('key')) { const i = items.findIndex(x => x.key === LAB.qs('key')); if (i >= 0) cur = i; }
+  render();
+});
+</script>
+</body>
+</html>

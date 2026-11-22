@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 삶의 문제 올리기</title>
+<link rel="stylesheet" href="common.css?v=1">
+<style>
+.cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.catbox { background: #fafbfd; border: 1.5px solid #edf0f5; border-radius: 12px; padding: 10px 12px; font-size: 0.8rem; line-height: 1.5; }
+.catbox b { display: block; font-size: 0.88rem; margin-bottom: 2px; }
+.catbox .ex { color: #7a6a2a; background: #fff9db; border-radius: 6px; padding: 2px 6px; margin-top: 4px; display: block; }
+@media (max-width: 520px) { .cats { grid-template-columns: 1fr; } }
+.catpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.catpick .chip { font-size: 0.82rem; }
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.toolbar button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; color: #555; }
+.toolbar button.on { background: var(--stage); border-color: var(--stage); color: #fff; }
+.post { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); position: relative; }
+.post.mine { box-shadow: 0 0 0 2px var(--stage), 0 1px 3px rgba(0,0,0,.06); }
+.post .rank { position: absolute; top: -8px; right: 12px; background: var(--stage); color: #fff; font-weight: 900; font-size: 0.74rem; border-radius: 999px; padding: 3px 10px; }
+.post .cat { font-size: 0.74rem; font-weight: 700; color: var(--stage); }
+.post h3 { margin: 2px 0 6px; font-size: 1.02rem; line-height: 1.4; }
+.post .body { font-size: 0.88rem; line-height: 1.65; }
+.post .body .lbl { display: block; font-size: 0.72rem; font-weight: 800; color: var(--text-muted); margin-top: 6px; }
+.post .by { font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; }
+.acts { display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; flex-wrap: wrap; }
+.like { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 800; cursor: pointer; font-size: 0.86rem; font-family: inherit; }
+.like.on { background: #fff0f6; border-color: #fcc2d7; color: #d6336c; }
+.like:disabled { opacity: .6; cursor: default; }
+.like-names { font-size: 0.72rem; color: var(--text-muted); flex: 1; min-width: 0; }
+.cmts { display: flex; flex-direction: column; gap: 4px; font-size: 0.84rem; margin-bottom: 6px; }
+.cmts b { color: var(--stage); }
+.cmts .x { background: none; border: none; color: #adb5bd; cursor: pointer; font-size: 0.7rem; }
+.cin { display: flex; gap: 6px; }
+.cin input { flex: 1; padding: 8px 10px; font-size: 0.86rem; }
+.cin button { border: none; background: var(--stage); color: #fff; border-radius: 8px; padding: 0 14px; font-weight: 800; cursor: pointer; font-family: inherit; }
+.locked { text-align: center; background: #fff; border-radius: 16px; padding: 26px 16px; color: #666; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+
+  <div class="card">
+    <h2>🤔 어떤 문제를 찾으면 될까요?</h2>
+    <p class="hint" style="margin:0">"학교 숙제니까 대충"이 아니라, <b>졸업을 앞둔 내가 진짜로 신경 쓰이는 문제</b>를 찾아요.
+      아래 여섯 갈래 중 어디에서 찾아도 좋아요. 친구들이 "맞아, 나도!" 하고 공감할수록 모둠 주제로 뽑힐 가능성이 커져요.</p>
+    <div class="cats" id="cats"></div>
+  </div>
+
+  <div class="step-h"><div class="n">1</div><h2>내 삶의 문제 올리기<span class="sub">한 사람당 하나 · 언제든 고칠 수 있어요</span></h2></div>
+  <div class="card" id="myForm"><div class="loading-state">불러오는 중...</div></div>
+
+  <div class="step-h"><div class="n">2</div><h2>우리 반 문제에 공감 나누기<span class="sub">❤️ 공감 + 💬 댓글이 많은 문제가 위로 올라가요</span></h2></div>
+  <div class="tip" style="margin-top:0">💬 <b>좋은 댓글</b>은 "나도 그래!"에서 한 걸음 더 나가요. 내 경험을 덧붙이거나("나는 ○○ 때 그랬어"), 궁금한 점을 묻거나("이건 1학년도 겪을까?"), 해결 아이디어를 살짝 던져 봐요.</div>
+  <div id="board"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="session.js?v=1"></script>
+<script src="lab.js?v=1"></script>
+<script>
+let ban, me, problems = {}, likes = {}, comments = {}, topics = [], sortMode = 'score', catFilter = '';
+const cin = {}; // 댓글 입력 초안 — 다시 그려도 지워지지 않게
+
+document.getElementById('cats').innerHTML = LAB.CATS.filter(c => c.id !== 'etc').map(c =>
+  `<div class="catbox"><b>${c.icon} ${c.name}</b>${c.desc}${c.ex.map(e => `<span class="ex">예) ${LAB.esc(e)}</span>`).join('')}</div>`).join('');
+
+function myForm() {
+  const p = problems[me] || {};
+  const box = document.getElementById('myForm');
+  const isTopic = topics.includes(me);
+  box.innerHTML = `
+    ${isTopic ? '<div class="tip" style="margin-top:0">🎉 <b>내 문제가 모둠 주제로 뽑혔어요!</b> 나는 이 모둠에 고정이에요. 내용을 고치면 모둠 이름도 같이 바뀌어요.</div>' : ''}
+    <label class="field-label">어느 갈래의 문제인가요?</label>
+    <div class="catpick">${LAB.CATS.map(c => `<label class="chip"><input type="radio" name="cat" value="${c.id}" ${p.cat === c.id ? 'checked' : ''}><span>${c.icon} ${c.name}</span></label>`).join('')}</div>
+    <label class="field-label" for="fTitle">문제를 한 문장으로 <span class="dc-muted">(친구들이 제목만 보고도 알 수 있게)</span></label>
+    <input type="text" id="fTitle" maxlength="60" placeholder="예) 쉬는 시간 10분, 화장실 줄 때문에 늘 수업에 늦어요" value="${LAB.escAttr(p.title || '')}">
+    <label class="field-label" for="fStory">어떤 상황인가요? 내가 직접 겪은 일을 써 봐요</label>
+    <textarea id="fStory" rows="4" placeholder="언제, 어디서, 어떤 일이 있었는지 구체적으로. 그때 어떤 기분이었는지도 좋아요.">${LAB.esc(p.story || '')}</textarea>
+    <label class="field-label" for="fWho">왜 함께 풀어야 할 문제일까요?</label>
+    <textarea id="fWho" rows="3" placeholder="나 말고 누가 또 겪고 있을까요? 그냥 두면 어떻게 될까요?">${LAB.esc(p.who || '')}</textarea>
+    <div class="error-msg" id="fErr"></div><div class="ok-msg" id="fOk"></div>
+    <button class="btn" id="fBtn">${p.title ? '✏️ 고친 내용 저장하기' : '📮 우리 반 게시판에 올리기'}</button>
+    ${p.updatedAt ? `<div class="saved-box"><div class="t">💾 서버에 저장된 내 문제 (${LAB.fmtTime(p.updatedAt)})</div><b>${LAB.cat(p.cat).icon} ${LAB.esc(p.title)}</b></div>` : ''}`;
+  document.getElementById('fBtn').onclick = saveMine;
+}
+async function saveMine() {
+  const err = document.getElementById('fErr'), ok = document.getElementById('fOk');
+  err.classList.remove('show'); ok.classList.remove('show');
+  const c = document.querySelector('input[name=cat]:checked');
+  const rec = { id: me, name: LAB.student.name, num: LAB.student.num || 0, cat: c ? c.value : '',
+    title: document.getElementById('fTitle').value.trim(), story: document.getElementById('fStory').value.trim(), who: document.getElementById('fWho').value.trim(), updatedAt: Date.now() };
+  const miss = [!rec.cat && '갈래', !rec.title && '한 문장', !rec.story && '상황'].filter(Boolean);
+  if (miss.length) { err.textContent = '아직 비어 있어요: ' + miss.join(', '); err.classList.add('show'); return; }
+  const btn = document.getElementById('fBtn'); btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    await LAB.put(`problems/${ban}/${me}`, rec);
+    problems[me] = rec; myForm(); renderBoard();
+    const o = document.getElementById('fOk'); o.textContent = '올렸어요! 이제 친구들 문제도 볼 수 있어요. 👇'; o.classList.add('show');
+  } catch (e) { err.textContent = '저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'; err.classList.add('show'); btn.disabled = false; }
+}
+
+const score = id => Object.keys(likes[id] || {}).length + Object.keys(comments[id] || {}).length;
+function captureInputs() {
+  document.querySelectorAll('.cin input').forEach(el => { cin[el.dataset.k] = el.value; });
+  const a = document.activeElement;
+  return a && a.dataset && a.dataset.k ? { k: a.dataset.k, s: a.selectionStart, e: a.selectionEnd } : null;
+}
+function renderBoard() {
+  const root = document.getElementById('board');
+  if (!problems[me] && !LAB.student.isTeacher) {
+    root.innerHTML = '<div class="locked">🔒 <b>먼저 내 문제를 올려야</b> 친구들 문제를 볼 수 있어요.<br><span class="dc-muted">다른 사람 생각에 휩쓸리기 전에, 내 생각부터!</span></div>'; return;
+  }
+  const focus = captureInputs();
+  const ranked = Object.keys(problems).sort((a, b) => score(b) - score(a) || (problems[a].updatedAt - problems[b].updatedAt));
+  const rankOf = {}; ranked.forEach((id, i) => rankOf[id] = i + 1);
+  let ids = sortMode === 'score' ? ranked : Object.keys(problems).sort((a, b) => problems[b].updatedAt - problems[a].updatedAt);
+  if (catFilter) ids = ids.filter(id => problems[id].cat === catFilter);
+  const usedCats = [...new Set(Object.values(problems).map(p => p.cat))];
+  let h = `<div class="toolbar"><button data-sort="score" class="${sortMode === 'score' ? 'on' : ''}">🔥 공감 많은 순</button><button data-sort="new" class="${sortMode === 'new' ? 'on' : ''}">🕒 최신 순</button></div>
+    <div class="toolbar"><button data-cat="" class="${!catFilter ? 'on' : ''}">전체 ${Object.keys(problems).length}</button>${LAB.CATS.filter(c => usedCats.includes(c.id)).map(c =>
+      `<button data-cat="${c.id}" class="${catFilter === c.id ? 'on' : ''}">${c.icon} ${Object.values(problems).filter(p => p.cat === c.id).length}</button>`).join('')}</div>`;
+  if (!ids.length) h += '<div class="empty-state">아직 올라온 문제가 없어요.</div>';
+  h += ids.map(id => {
+    const p = problems[id], c = LAB.cat(p.cat), lk = likes[id] || {}, cm = comments[id] || {};
+    const liked = !!lk[me], mine = id === me, nL = Object.keys(lk).length;
+    const likeNames = Object.keys(lk).map(k => problems[k] ? problems[k].name : null).filter(Boolean);
+    const cms = Object.keys(cm).map(k => Object.assign({ k }, cm[k])).sort((a, b) => a.ts - b.ts);
+    return `<div class="post${mine ? ' mine' : ''}">
+      ${rankOf[id] <= 5 && score(id) > 0 ? `<div class="rank">공감 ${rankOf[id]}위</div>` : ''}
+      ${topics.includes(id) ? '<div class="rank" style="right:auto;left:12px;background:#212529">⭐ 모둠 주제</div>' : ''}
+      <div class="cat">${c.icon} ${c.name}</div>
+      <h3>${LAB.esc(p.title)}</h3>
+      <div class="body"><span class="lbl">어떤 상황?</span>${LAB.nl2br(p.story)}${p.who ? `<span class="lbl">왜 함께 풀어야 할까?</span>${LAB.nl2br(p.who)}` : ''}</div>
+      <div class="by">${LAB.esc(p.name)}${mine ? ' (나)' : ''} · ${LAB.fmtTime(p.updatedAt)}</div>
+      <div class="acts"><button class="like${liked ? ' on' : ''}" data-like="${id}" ${mine ? 'disabled title="내 글에는 누를 수 없어요"' : ''}>${liked ? '❤️' : '🤍'} 공감 ${nL}</button>
+        <span class="like-names">${likeNames.length ? LAB.esc(likeNames.join(', ')) : ''}</span><span class="dc-muted">💬 ${cms.length}</span></div>
+      <div class="cmts">${cms.map(x => `<div><b>${LAB.esc(x.name)}</b> ${LAB.esc(x.text)} ${x.id === me || LAB.student.isTeacher ? `<button class="x" data-del="${id}/${x.k}">지우기</button>` : ''}</div>`).join('')}</div>
+      <div class="cin"><input data-k="${id}" placeholder="댓글로 공감·경험·질문 남기기" maxlength="200" value="${LAB.escAttr(cin[id] || '')}"><button data-cm="${id}">등록</button></div>
+    </div>`;
+  }).join('');
+  root.innerHTML = h;
+  if (focus) { const el = root.querySelector(`.cin input[data-k="${focus.k}"]`); if (el) { el.focus(); try { el.setSelectionRange(focus.s, focus.e); } catch (e) {} } }
+}
+async function load() {
+  const [p, l, c, pk] = await Promise.all([LAB.get(`problems/${ban}`), LAB.get(`likes/${ban}`), LAB.get(`comments/${ban}`), LAB.get(`pick/${ban}/_config/topics`)]);
+  problems = p || {}; likes = l || {}; comments = c || {}; topics = Object.values(pk || {});
+}
+document.getElementById('board').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.sort) { sortMode = b.dataset.sort; return renderBoard(); }
+  if (b.dataset.cat !== undefined) { catFilter = b.dataset.cat; return renderBoard(); }
+  if (b.dataset.like) {
+    const id = b.dataset.like, path = `likes/${ban}/${id}/${me}`; b.disabled = true;
+    try { if (likes[id] && likes[id][me]) { await LAB.del(path); delete likes[id][me]; } else { await LAB.put(path, true); (likes[id] = likes[id] || {})[me] = true; } } catch (x) { alert('저장하지 못했어요. 다시 눌러 주세요.'); }
+    return renderBoard();
+  }
+  if (b.dataset.cm) {
+    const id = b.dataset.cm, inp = b.parentNode.querySelector('input'), text = inp.value.trim();
+    if (!text) return inp.focus();
+    b.disabled = true;
+    try { const r = await LAB.post(`comments/${ban}/${id}`, { id: me, name: LAB.student.name, text, ts: Date.now() });
+      (comments[id] = comments[id] || {})[r.name] = { id: me, name: LAB.student.name, text, ts: Date.now() }; cin[id] = ''; inp.value = '';
+    } catch (x) { alert('댓글을 저장하지 못했어요. 다시 눌러 주세요.'); }
+    return renderBoard();
+  }
+  if (b.dataset.del) {
+    if (!confirm('이 댓글을 지울까요?')) return;
+    await LAB.del(`comments/${ban}/${b.dataset.del}`); const [id, k] = b.dataset.del.split('/'); if (comments[id]) delete comments[id][k];
+    return renderBoard();
+  }
+});
+document.getElementById('board').addEventListener('keydown', e => {
+  // 한글 조합 중 Enter는 무시하고, 조합이 끝난 뒤(마지막 글자 확정 후) 등록한다
+  if (e.key === 'Enter' && e.target.dataset.k && !e.isComposing && e.keyCode !== 229) {
+    e.preventDefault(); const b = e.target.parentNode.querySelector('button'); setTimeout(() => b.click(), 30);
+  }
+});
+document.getElementById('board').addEventListener('input', e => { if (e.target.dataset.k) cin[e.target.dataset.k] = e.target.value; });
+
+LAB.start({ stage: 1, title: '내 삶의 문제 올리고 공감 나누기', subtitle: '우리 반 친구들이 가장 많이 공감한 문제들이 모둠 주제 후보가 돼요.' }).then(async () => {
+  ban = LAB.myBan(); me = LAB.student.id;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban));
+  await load(); myForm(); renderBoard();
+  // 8초마다 새로 불러오기 (한글 입력 중이면 이번 차례는 건너뜀)
+  let composing = false;
+  document.addEventListener('compositionstart', () => composing = true);
+  document.addEventListener('compositionend', () => composing = false);
+  setInterval(async () => { if (document.hidden || composing) return; try { await load(); renderBoard(); } catch (e) {} }, 8000);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>캔바 포스터</title>
+<link rel="stylesheet" href="common.css?v=1">
+<style>
+.must { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.must div { background: var(--stage-soft); border-radius: 12px; padding: 10px 12px; font-size: 0.82rem; line-height: 1.55; }
+.must b { display: block; font-size: 0.9rem; color: var(--stage); }
+@media (max-width: 520px) { .must { grid-template-columns: 1fr; } }
+.how ol { font-size: 0.86rem; line-height: 1.8; }
+.gal { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.gitem { background: #fff; border-radius: 14px; padding: 12px 14px; box-shadow: 0 1px 3px rgba(0,0,0,.06); font-size: 0.84rem; }
+.gitem .b { font-size: 0.72rem; color: var(--text-muted); font-weight: 700; }
+.gitem .t { font-weight: 800; margin: 2px 0 8px; line-height: 1.4; }
+.gitem a.btn { margin-top: 0; }
+.gitem.none { opacity: .5; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="session.js?v=1"></script>
+<script src="lab.js?v=1"></script>
+<script>
+let ban, G, me;
+function isCanva(u) { return /^https:\/\/(www\.)?canva\.(com|link)\//.test(u); }
+
+async function render() {
+  const p = (await LAB.get(`poster/${ban}/${G.id}`)) || {};
+  document.getElementById('main').innerHTML = LAB.groupBannerHtml(G, ban) + `
+  <div class="card">
+    <h2>🎨 포스터에 꼭 들어갈 5가지</h2>
+    <div class="must">
+      <div><b>① 한 줄 문제</b>지나가던 사람도 3초 만에 "아, 이게 문제구나" 알 수 있게</div>
+      <div><b>② 데이터 한 방</b>설문 결과 그래프나 큰 숫자 하나 (예: "<b>10명 중 6명</b>이…")</div>
+      <div><b>③ 해결 방안</b>우리가 제안하는 방법을 짧고 분명하게</div>
+      <div><b>④ 행동 부탁</b>보는 사람이 오늘 당장 할 수 있는 일 하나 (예: "쉬는 시간 2분 일찍 출발!")</div>
+      <div style="grid-column:1/-1"><b>⑤ 만든 사람</b>${LAB.esc(LAB.banLabel(ban))} ${G.no}모둠 · 설문 참여 인원 · 조사 날짜</div>
+    </div>
+    <div class="tip">💡 <b>잘 만든 포스터의 비밀</b> — 글은 적게, 글자는 크게, 색은 2~3가지만. 멀리서 봐도 숫자가 눈에 들어오면 성공! 보고서를 그대로 옮기지 말고 <b>가장 중요한 것만</b> 골라요.</div>
+  </div>
+  <div class="card how"><h2>🛠️ 캔바로 만드는 방법</h2><ol>
+    <li><b>canva.com</b>에 학교 계정으로 로그인 → 검색창에 <b>"포스터"</b> 검색 → 마음에 드는 템플릿 고르기</li>
+    <li>오른쪽 위 <b>공유</b> → 모둠원 이메일 넣기(<b>편집 가능</b>)로 초대하면 같이 만들 수 있어요</li>
+    <li>그래프는 왼쪽 <b>요소 → "차트"</b>를 검색해 넣고 우리 숫자를 입력해요</li>
+    <li>다 만들면 <b>공유 → "링크가 있는 모든 사용자" · 보기 가능</b>으로 바꾸고 <b>링크 복사</b></li>
+    <li>아래 칸에 링크를 붙여 넣고 저장! 인쇄용은 <b>공유 → 다운로드 → PDF 인쇄</b></li></ol></div>
+
+  <div class="card"><h2>🔗 우리 모둠 포스터 링크</h2>
+    <label class="field-label" for="ptitle">포스터 제목</label>
+    <input type="text" id="ptitle" maxlength="60" placeholder="예) 10분의 전쟁: 쉬는 시간 화장실" value="${LAB.escAttr(p.title || '')}">
+    <label class="field-label" for="plink">캔바 보기 링크</label>
+    <input type="url" id="plink" placeholder="https://www.canva.com/design/..." value="${LAB.escAttr(p.link || '')}">
+    <div class="error-msg" id="pErr"></div><div class="ok-msg" id="pOk"></div>
+    <button class="btn" id="pSave">💾 포스터 링크 저장</button>
+    ${p.link ? `<div class="saved-box"><div class="t">💾 저장된 포스터 (${LAB.esc(p.byName)} · ${LAB.fmtTime(p.at)})</div><a href="${LAB.escAttr(p.link)}" target="_blank" rel="noopener">${LAB.esc(p.title || p.link)} ↗</a></div>` : ''}
+  </div>
+
+  <div class="step-h"><div class="n">🖼️</div><h2>3학년 포스터 전시관<span class="sub">다른 모둠은 어떻게 만들었을까?</span></h2></div>
+  <div id="gal" class="gal"><div class="loading-state">불러오는 중...</div></div>`;
+  document.getElementById('pSave').onclick = async () => {
+    const err = document.getElementById('pErr'), ok = document.getElementById('pOk'); err.classList.remove('show'); ok.classList.remove('show');
+    const link = document.getElementById('plink').value.trim(), title = document.getElementById('ptitle').value.trim();
+    if (!/^https?:\/\//.test(link)) { err.textContent = '링크는 https:// 로 시작해야 해요. 캔바에서 "링크 복사"한 것을 붙여 넣어요.'; err.classList.add('show'); return; }
+    if (!isCanva(link) && !confirm('캔바 링크가 아닌 것 같아요. 그래도 저장할까요?')) return;
+    try { await LAB.put(`poster/${ban}/${G.id}`, { link, title, by: me, byName: LAB.student.name, at: Date.now() }); render(); }
+    catch (e) { err.textContent = '저장하지 못했어요. 다시 눌러 주세요.'; err.classList.add('show'); }
+  };
+  gallery();
+}
+async function gallery() {
+  const [posters, ...picks] = await Promise.all([LAB.get('poster'), ...LAB.BANS.map(b => LAB.loadGroups(b))]);
+  const P = posters || {};
+  let h = '';
+  LAB.BANS.forEach((b, i) => picks[i].groups.forEach(g => {
+    const p = (P[b] || {})[g.id];
+    h += `<div class="gitem${p ? '' : ' none'}"><div class="b">${LAB.esc(LAB.banLabel(b))} ${g.no}모둠 · ${LAB.cat(g.cat).icon}</div><div class="t">${LAB.esc(p && p.title || g.title)}</div>
+      ${p ? `<a class="btn small secondary" href="${LAB.escAttr(p.link)}" target="_blank" rel="noopener">포스터 보기 ↗</a>` : '<span class="dc-muted">아직 준비 중</span>'}</div>`;
+  }));
+  document.getElementById('gal').innerHTML = h || '<div class="empty-state">아직 모둠이 없어요.</div>';
+}
+
+LAB.start({ stage: 4, title: '캔바 포스터 만들고 퍼뜨리기', subtitle: '보고서의 핵심을 한 장에! 학교 곳곳에 붙여 우리 해결 방안을 퍼뜨려요.' }).then(async () => {
+  me = LAB.student.id;
+  const r = await LAB.resolveMyGroup(); ban = r.ban; G = r.group;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban, r.data, G));
+  if (!G) { document.getElementById('main').innerHTML = LAB.noGroupHtml(); return; }
+  render();
+});
+</script>
+</body>
+</html>

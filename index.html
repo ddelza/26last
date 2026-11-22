@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>물음표에서 느낌표로 · 광수중 3학년 학기말 프로젝트</title>
+<link rel="stylesheet" href="common.css?v=1">
+<style>
+.step { display: none; } .step.active { display: block; }
+.hero { text-align: center; padding: 26px 8px 18px; }
+.hero .big { font-size: 2.4rem; letter-spacing: 4px; }
+.hero h1 { margin: 6px 0 4px; font-size: 1.55rem; }
+.hero p { margin: 0; color: #555; font-size: 0.88rem; }
+.hero .kana { display: inline-block; margin-top: 8px; font-size: 0.72rem; background: #fff; border-radius: 999px; padding: 3px 10px; color: var(--text-muted); }
+.story { font-size: 0.9rem; line-height: 1.8; }
+.story b { color: var(--accent); }
+.flow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 12px 0 2px; }
+.flow div { text-align: center; font-size: 0.74rem; font-weight: 700; border-radius: 10px; padding: 8px 2px; }
+.flow span { display: block; font-size: 1.3rem; }
+.who { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--accent-soft); color: var(--accent); border-radius: 12px; padding: 10px 14px; font-weight: 700; font-size: 0.88rem; margin-bottom: 14px; }
+.who button { background: none; border: none; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: 0.78rem; font-family: inherit; }
+.stage { background: var(--surface); border-radius: 18px; margin-bottom: 14px; box-shadow: 0 1px 3px rgba(0,0,0,.06); overflow: hidden; border-top: 6px solid var(--c); }
+.stage-head { display: flex; gap: 12px; align-items: center; padding: 16px 18px 8px; }
+.stage-icon { flex: none; width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 1.6rem; background: var(--s); }
+.stage-head .no { font-size: 0.72rem; font-weight: 800; color: var(--c); }
+.stage-head h3 { margin: 0; font-size: 1.1rem; }
+.stage-goal { padding: 0 18px; font-size: 0.84rem; color: #555; }
+.stage-links { padding: 12px 18px 16px; display: flex; flex-direction: column; gap: 8px; }
+.stage-links a { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-decoration: none; background: var(--s); color: var(--c); font-weight: 800; font-size: 0.9rem; border-radius: 12px; padding: 12px 14px; }
+.stage-links a .st { font-size: 0.72rem; font-weight: 700; background: #fff; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.stage-links a .st.done { background: var(--c); color: #fff; }
+.foot { text-align: center; margin-top: 26px; font-size: 0.76rem; }
+.foot a { color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div class="big">❓ → ❗</div>
+    <h1 id="pName">물음표에서 느낌표로</h1>
+    <p id="pSub">광수중 3학년 학기말 프로젝트</p>
+    <div class="kana">가칭이에요 · 이름은 언제든 바뀔 수 있어요</div>
+  </div>
+
+  <!-- 로그인 -->
+  <div class="step active" id="step-login">
+    <div class="card story">
+      배움이 즐거운 마을 공동체 평화학교, 질문하는 학교, 혁신학교, 디지털 시민성 선도학교…<br>
+      3년 동안 광수중에서 배운 우리, <b>진짜 삶의 문제를 풀 수 있는 사람</b>이 되었을까요?<br>
+      이번엔 <b>수단과 방법을 가리지 않고</b> 한번 제대로 달려 봐요. 🏃
+      <div class="flow">
+        <div style="background:#fff4e6;color:#d9480f"><span>🔍</span>문제 찾기</div>
+        <div style="background:#e7f5ff;color:#1864ab"><span>🎯</span>질문 다듬기</div>
+        <div style="background:#e6fcf5;color:#087f5b"><span>📡</span>광수에게 묻다</div>
+        <div style="background:#fff0f6;color:#a61e4d"><span>❗</span>해결·퍼뜨리기</div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>입장하기</h2>
+      <p class="hint">학번 4자리와 이름을 넣어요. 예) 3학년 1반 5번 → 3105<br>1·2학년도 설문 날에는 여기로 들어와요.</p>
+      <label class="field-label" for="inputId">학번 (4자리)</label>
+      <input type="tel" id="inputId" maxlength="4" inputmode="numeric" placeholder="3105">
+      <label class="field-label" for="inputName">이름</label>
+      <input type="text" id="inputName" placeholder="홍길동">
+      <div class="error-msg" id="loginError"></div>
+      <button class="btn" id="loginBtn" onclick="onLogin()" style="background:var(--accent)">입장하기</button>
+    </div>
+  </div>
+
+  <!-- 3학년: 단계 지도 -->
+  <div class="step" id="step-main">
+    <div class="who"><span id="welcome"></span><button onclick="onLogout()">다른 사람으로</button></div>
+    <div id="stages"></div>
+    <div class="foot"><a href="admin.html">교사용 관리 페이지</a></div>
+  </div>
+
+  <!-- 1·2학년: 설문만 -->
+  <div class="step" id="step-survey">
+    <div class="who"><span id="welcome2"></span><button onclick="onLogout()">다른 사람으로</button></div>
+    <div class="card center">
+      <div style="font-size:2.4rem">📡</div>
+      <h2>3학년 선배들이 묻고 있어요!</h2>
+      <p class="hint" style="font-size:0.88rem">3학년 선배들이 우리 삶의 문제를 풀기 위해 질문 25개를 만들었어요.<br>여러분의 솔직한 대답 하나하나가 <b>진짜 데이터</b>가 돼요.<br>이름은 선배들에게 보이지 않아요.</p>
+      <a class="btn" href="survey.html" style="background:#0ca678">설문 시작하기 →</a>
+    </div>
+  </div>
+</div>
+
+<script src="session.js?v=1"></script>
+<script src="lab.js?v=1"></script>
+<script>
+const DB_URL = LAB.DB_URL;
+const TEACHER_ID = '3000', TEACHER_NAME = '김병선';
+document.getElementById('pName').textContent = LAB.NAME;
+document.getElementById('pSub').textContent = LAB.SUB;
+document.title = LAB.NAME + ' · 광수중 3학년 학기말 프로젝트';
+
+function showStep(id) { document.querySelectorAll('.step').forEach(s => s.classList.toggle('active', s.id === id)); }
+function setErr(m) { const el = document.getElementById('loginError'); el.textContent = m || ''; el.classList.toggle('show', !!m); }
+async function loadCfg() {
+  const r = await fetch(`${DB_URL}/config/current.json`);
+  if (!r.ok) throw new Error('설정 정보를 불러오지 못했어요.');
+  LAB.cfg = (await r.json()) || { year: new Date().getFullYear(), sem: 2 };
+  return LAB.cfg;
+}
+
+window.onLogin = async function () {
+  const id = document.getElementById('inputId').value.trim(), name = document.getElementById('inputName').value.trim();
+  setErr('');
+  if (!/^\d{4}$/.test(id)) return setErr('학번은 4자리 숫자로 넣어 주세요.');
+  if (!name) return setErr('이름을 넣어 주세요.');
+  const btn = document.getElementById('loginBtn'); btn.disabled = true; btn.textContent = '확인 중...';
+  try {
+    const cfg = await loadCfg();
+    if (id === TEACHER_ID && name === TEACHER_NAME) { const t = { id, name, isTeacher: true }; setSrStudent(t); return enter(t); }
+    const rec = await fetch(`${DB_URL}/years/${cfg.year}/students/${id}.json`).then(r => r.json());
+    if (!rec || String(rec.name).trim() !== name) return setErr('학번 또는 이름이 맞지 않아요. 다시 확인해 주세요.');
+    const s = { id, name: rec.name, grade: rec.grade, ban: rec.ban, num: rec.num };
+    setSrStudent(s); enter(s);
+  } catch (e) { setErr(e.message || '잠시 후 다시 시도해 주세요.'); }
+  finally { btn.disabled = false; btn.textContent = '입장하기'; }
+};
+window.onLogout = function () { clearSrStudent(); setErr(''); document.getElementById('inputId').value = ''; document.getElementById('inputName').value = ''; showStep('step-login'); };
+
+async function enter(s) {
+  LAB.student = s;
+  if (!s.isTeacher && String(s.grade) !== '3') {
+    document.getElementById('welcome2').textContent = '✓ ' + srWhoLabel(s);
+    return showStep('step-survey');
+  }
+  document.getElementById('welcome').textContent = '✓ ' + srWhoLabel(s) + (s.isTeacher ? '' : '님');
+  renderStages({});
+  showStep('step-main');
+  if (s.isTeacher) return;
+  // 내 진행 상황 표시 (실패해도 화면은 그대로)
+  try {
+    const ban = LAB.myBan();
+    const [mine, data, sc, resp] = await Promise.all([
+      LAB.get(`problems/${ban}/${s.id}`), LAB.loadGroups(ban), LAB.get('survey/_config'), LAB.get(`resp/${s.id}/done`)]);
+    const g = LAB.groupOf(data, s.id);
+    const st = {};
+    st['s1-board.html'] = mine ? ['✓ 올렸어요', 1] : ['아직 안 올림', 0];
+    st['s1-pick.html'] = g ? ['✓ ' + g.no + '모둠', 1] : data.conf.open ? ['🟢 신청 중!', 0] : data.groups.length ? ['모둠 없음', 0] : ['준비 중', 0];
+    if (g) {
+      const fin = await LAB.get(`final/${ban}/${g.id}/out`);
+      st['s2-question.html'] = fin && fin.submitted ? ['✓ 내보냄', 1] : ['진행 중', 0];
+    }
+    st['survey.html'] = resp ? ['✓ 참여 완료', 1] : (sc && sc.open) ? ['🟢 지금 참여!', 0] : ['아직 열리지 않음', 0];
+    st['s3-result.html'] = (sc && sc.results) ? ['🟢 결과 공개', 0] : ['설문 뒤 공개', 0];
+    renderStages(st);
+  } catch (e) {}
+}
+function renderStages(st) {
+  document.getElementById('stages').innerHTML = LAB.STAGES.map(S => `
+    <div class="stage" style="--c:${S.color};--s:${S.soft}">
+      <div class="stage-head"><div class="stage-icon">${S.icon}</div><div><div class="no">${S.no}단계</div><h3>${S.name}</h3></div></div>
+      <div class="stage-goal">${S.goal}</div>
+      <div class="stage-links">${S.pages.map(p => {
+        const x = st[p.href];
+        return `<a href="${p.href}">${p.label}${x ? `<span class="st${x[1] ? ' done' : ''}">${LAB.esc(x[0])}</span>` : '<span>→</span>'}</a>`;
+      }).join('')}</div>
+    </div>`).join('');
+}
+document.getElementById('inputId').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('inputName').focus(); } });
+document.getElementById('inputName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); onLogin(); } });
+(async () => {
+  const s = getSrStudent();
+  try { await loadCfg(); if (s) enter(s); } catch (e) { setErr('불러오기 실패 — 새로고침해 주세요.'); }
+})();
+</script>
+</body>
+</html>
