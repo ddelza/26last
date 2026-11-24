@@ -59,14 +59,14 @@
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=2"></script>
+<script src="lab.js?v=3"></script>
 <script>
 let ban, D = null, busy = false;
 const me = () => LAB.student.id;
 
 async function load() { D = await LAB.loadGroups(ban); paint(); }
 function paint() {
-  const conf = D.conf, cap = D.cap, my = LAB.groupOf(D, me()), proposer = D.groups.some(g => g.id === me());
+  const conf = D.conf, cap = D.cap, my = LAB.groupOf(D, me()), proposer = D.groups.some(g => g.author === me());
   const mode = !D.groups.length ? 'wait' : conf.open ? 'open' : 'closed';
   document.getElementById('status').innerHTML = '<div class="status-stack">' +
     `<div class="status open${mode === 'open' ? '' : ' off'}"><div>🟢 <b>지금 신청할 수 있어요!</b> 모둠마다 <b>${cap}명</b> · 선착순</div></div>` +

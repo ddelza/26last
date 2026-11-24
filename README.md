@@ -5,7 +5,7 @@
 
 | 단계 | 페이지 |
 |---|---|
-| 1 문제 찾기 | s1-board.html (문제 올리기·공감·댓글), s1-pick.html (선착순 모둠) |
+| 1 문제 찾기 | s1-board.html (문제 올리기 — 한 사람 최대 5개·공감·댓글), s1-pick.html (선착순 모둠) |
 | 2 질문 다듬기 | s2-question.html |
 | 3 광수에게 묻다 | survey.html (전교생), s3-result.html |
 | 4 해결하고 퍼뜨리기 | s4-report.html, s4-poster.html |

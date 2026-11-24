@@ -87,7 +87,7 @@
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=2"></script>
+<script src="lab.js?v=3"></script>
 <script>
 const DB_URL = LAB.DB_URL;
 const TEACHER_ID = '3000', TEACHER_NAME = '김병선';
@@ -136,10 +136,11 @@ async function enter(s) {
   try {
     const ban = LAB.myBan();
     const [mine, data, sc, resp] = await Promise.all([
-      LAB.get(`problems/${ban}/${s.id}`), LAB.loadGroups(ban), LAB.get('survey/_config'), LAB.get(`resp/${s.id}/done`)]);
+      LAB.get(`problems/${ban}`), LAB.loadGroups(ban), LAB.get('survey/_config'), LAB.get(`resp/${s.id}/done`)]);
     const g = LAB.groupOf(data, s.id);
     const st = {};
-    st['s1-board.html'] = mine ? ['✓ 올렸어요', 1] : ['아직 안 올림', 0];
+    const nMine = LAB.problemsBy(mine, s.id).length;
+    st['s1-board.html'] = nMine ? [`✓ ${nMine}개 올렸어요`, 1] : ['아직 안 올림', 0];
     st['s1-pick.html'] = g ? ['✓ ' + g.no + '모둠', 1] : data.conf.open ? ['🟢 신청 중!', 0] : data.groups.length ? ['모둠 없음', 0] : ['준비 중', 0];
     if (g) {
       const fin = await LAB.get(`final/${ban}/${g.id}/out`);

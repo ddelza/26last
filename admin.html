@@ -47,7 +47,7 @@ table.t tr.sel td { background: #fff9db; }
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=2"></script>
+<script src="lab.js?v=3"></script>
 <script>
 const PASSWORD = 'byung0703!';
 const TABS = [['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
@@ -84,19 +84,21 @@ async function t1() {
   const ids = Object.keys(P).sort((a, b) => sc(b) - sc(a) || P[a].updatedAt - P[b].updatedAt);
   const topics = D.groups.map(g => g.id);
   if (!sel.length) sel = topics.slice();
-  const notPosted = roster.filter(s => !P[s.id]);
+  const author = id => (P[id] && P[id].id) || id;
+  const nBy = {}; ids.forEach(id => nBy[author(id)] = (nBy[author(id)] || 0) + 1);
+  const notPosted = roster.filter(s => !nBy[s.id]);
   const assigned = {}; D.groups.forEach(g => g.members.forEach(m => assigned[m.id] = g));
   const unassigned = roster.filter(s => !assigned[s.id]);
   const changed = JSON.stringify(sel) !== JSON.stringify(topics);
   document.getElementById('view').innerHTML = `
-  <div class="card"><h2>1) 공감 많은 문제 5개 고르기 <span class="dc-muted">${LAB.banLabel(ban)} · 올린 사람 ${ids.length}${roster.length ? ' / ' + roster.length : ''}명</span></h2>
+  <div class="card"><h2>1) 공감 많은 문제 5개 고르기 <span class="dc-muted">${LAB.banLabel(ban)} · 문제 ${ids.length}개 · 올린 사람 ${Object.keys(nBy).length}${roster.length ? ' / ' + roster.length : ''}명</span></h2>
     ${notPosted.length ? `<p class="hint">아직 안 올린 학생: ${notPosted.map(s => s.num + ' ' + E(s.name)).join(', ')}</p>` : ''}
-    <p class="hint">체크한 순서가 모둠 번호(1~5모둠)가 돼요. 비슷한 문제·부적절한 문제는 빼고 다음 순위를 골라도 돼요.</p>
+    <p class="hint">체크한 순서가 모둠 번호(1~5모둠)가 돼요. 비슷한 문제·부적절한 문제는 빼고 다음 순위를 골라도 돼요. 한 학생이 여러 개 올렸어도 <b>한 사람 문제는 하나만</b> 고를 수 있어요(제안자는 자기 모둠에 고정되니까요).</p>
     <div class="btn-row" style="margin-bottom:8px"><button class="btn small ghost" id="top5">🔥 상위 5개 자동 체크</button><button class="btn small ghost" id="clr">체크 모두 해제</button></div>
     <table class="t"><tr><th></th><th>순위</th><th>문제</th><th>❤️</th><th>💬</th><th>제안</th></tr>
     ${ids.map((id, i) => { const p = P[id], o = sel.indexOf(id); return `<tr class="${o >= 0 ? 'sel' : ''}"><td><input type="checkbox" data-pick="${id}" ${o >= 0 ? 'checked' : ''}> ${o >= 0 ? `<span class="ord">${o + 1}</span>` : ''}</td><td>${i + 1}</td>
       <td>${LAB.cat(p.cat).icon} <b>${E(p.title)}</b><details><summary class="dc-muted">내용</summary>${LAB.nl2br(p.story)}<br><i>${LAB.nl2br(p.who || '')}</i></details></td>
-      <td>${Object.keys(L[id] || {}).length}</td><td>${Object.keys(C[id] || {}).length}</td><td>${p.num || ''} ${E(p.name)} <button class="btn small danger" style="padding:2px 6px" data-delp="${id}" title="부적절한 글 삭제">🗑</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="empty-state">아직 올라온 문제가 없어요.</td></tr>'}
+      <td>${Object.keys(L[id] || {}).length}</td><td>${Object.keys(C[id] || {}).length}</td><td>${p.num || ''} ${E(p.name)}${nBy[author(id)] > 1 ? ` <span class="pill no">${nBy[author(id)]}개</span>` : ''} <button class="btn small danger" style="padding:2px 6px" data-delp="${id}" title="부적절한 글 삭제">🗑</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="empty-state">아직 올라온 문제가 없어요.</td></tr>'}
     </table>
     <button class="btn" id="confirmTopics" ${changed && sel.length ? '' : 'disabled'} style="background:#212529">✅ 체크한 ${sel.length}개로 모둠 주제 확정${changed ? '' : ' (변경 없음)'}</button>
   </div>
@@ -114,10 +116,13 @@ async function t1() {
   const v = document.getElementById('view');
   v.querySelectorAll('[data-pick]').forEach(c => c.onchange = () => {
     const id = c.dataset.pick;
-    if (c.checked) { if (sel.length >= 5) { c.checked = false; return alert('5개까지만 고를 수 있어요.'); } sel.push(id); } else sel = sel.filter(x => x !== id);
+    if (c.checked) { if (sel.length >= 5) { c.checked = false; return alert('5개까지만 고를 수 있어요.'); }
+      if (sel.some(x => author(x) === author(id))) { c.checked = false; return alert(`${P[id].name} 학생의 다른 문제가 이미 체크되어 있어요.
+한 학생은 한 모둠에만 들어갈 수 있어서, 한 사람 문제는 하나만 고를 수 있어요.`); }
+      sel.push(id); } else sel = sel.filter(x => x !== id);
     t1();
   });
-  document.getElementById('top5').onclick = () => { sel = ids.slice(0, 5); t1(); };
+  document.getElementById('top5').onclick = () => { sel = []; ids.forEach(id => { if (sel.length < 5 && !sel.some(x => author(x) === author(id))) sel.push(id); }); t1(); };
   document.getElementById('clr').onclick = () => { sel = []; t1(); };
   document.getElementById('confirmTopics').onclick = async () => {
     const lost = Object.keys(D.picks).filter(k => !sel.includes(D.picks[k].topic));
@@ -125,7 +130,7 @@ async function t1() {
     await LAB.put(`pick/${ban}/_config/topics`, sel);
     await Promise.all(lost.map(k => LAB.del(`pick/${ban}/${k}`)));
     // 선정된 문제의 제안자가 다른 모둠에 신청해 둔 기록은 지운다(제안자는 자기 문제에 고정)
-    await Promise.all(sel.filter(id => D.picks[id]).map(id => LAB.del(`pick/${ban}/${id}`)));
+    await Promise.all(sel.map(author).filter(a => D.picks[a]).map(a => LAB.del(`pick/${ban}/${a}`)));
     t1();
   };
   document.getElementById('togglePick').onclick = async () => {

@@ -2,10 +2,11 @@
 // cell-genetics/cg.js(→digital-citizen/dc.js) 패턴을 이어받았다. Firebase RTDB REST, 빌드 없음.
 //
 // 데이터 경로: years/{year}/last26/...
-//   problems/{반}/{학번}            = { id, name, num, cat, title, story, who, updatedAt }   1단계 내 삶의 문제 (한 사람 한 개)
-//   likes/{반}/{글쓴이}/{누른 사람}  = true
-//   comments/{반}/{글쓴이}/{pushKey} = { id, name, text, ts }
-//   pick/{반}/_config               = { topics:[글쓴이 학번 ×5], open, cap(기본 5) }   교사가 선정·선착순 시작
+//   problems/{반}/{문제키}          = { id(쓴 학생 학번), name, num, cat, title, story, who, updatedAt }   1단계 내 삶의 문제
+//                                     한 사람이 여러 개 올릴 수 있다. 문제키 = push 키 (2026-11-24 전에 올린 글은 학번 그대로)
+//   likes/{반}/{문제키}/{누른 사람}  = true
+//   comments/{반}/{문제키}/{pushKey} = { id, name, text, ts }
+//   pick/{반}/_config               = { topics:[문제키 ×5], open, cap(기본 5) }   교사가 선정·선착순 시작
 //   pick/{반}/{학번}                = { topic, name, num, ts }   (제안자는 자기 문제에 자동 고정 — 기록 없음)
 //   q/{반}/{모둠}/{학번}            = { survey:{질문}, solution:{질문}, updatedAt }   2단계 개인 질문 초안
 //   final/{반}/{모둠}/survey|solution = { ...질문, by, byName, at }   모둠 최종 질문
@@ -16,7 +17,7 @@
 //   report/{반}/{모둠}/{칸}         = { text, by, byName, at }
 //   contrib/{반}/{모둠}/{학번}      = { text, name, at }
 //   poster/{반}/{모둠}              = { link, title, by, byName, at }
-//   ({모둠} = 그 문제를 제안한 학생의 학번 — cg/sr-exhibition의 topicId와 같은 발상)
+//   ({모둠} = 뽑힌 문제의 문제키 — cg/sr-exhibition의 topicId와 같은 발상. 제안자 = problems[문제키].id)
 //
 // 질문 형태 q = { q:'질문', type:'choice'|'open', options:['보기',...], multi:bool, etc:bool }
 // 설문 답 = 객관식 { sel:[보기 번호...], etc:'기타 내용' } / 주관식 '문자열'
@@ -159,16 +160,21 @@
     Object.keys(t).sort(function (a, b) { return a - b; }).forEach(function (k) { if (t[k]) topics.push(t[k]); });
     var groups = topics.map(function (tid, i) {
       var pr = problems[tid] || {};
+      var author = pr.id || tid;
       var list = Object.keys(picks).map(function (k) { return Object.assign({ id: k }, picks[k]); })
-        .filter(function (p) { return p.topic === tid && p.id !== tid; })
+        .filter(function (p) { return p.topic === tid && p.id !== author; })
         .sort(function (a, b) { return (a.ts - b.ts) || String(a.id).localeCompare(String(b.id)); });
       return { id: tid, no: i + 1, title: pr.title || '(삭제된 문제)', cat: pr.cat, story: pr.story, who: pr.who,
-        members: [{ id: tid, name: pr.name, num: pr.num, proposer: true }].concat(list) };
+        author: author, members: [{ id: author, name: pr.name, num: pr.num, proposer: true }].concat(list) };
     });
     return { conf: conf, picks: picks, problems: problems, groups: groups, cap: conf.cap || 5 };
   };
   LAB.loadGroups = function (ban) {
     return Promise.all([LAB.get('pick/' + ban), LAB.get('problems/' + ban)]).then(function (r) { return LAB.buildGroups(r[0], r[1]); });
+  };
+  // 학생이 쓴 문제들 (문제키 목록)
+  LAB.problemsBy = function (problems, sid) {
+    return Object.keys(problems || {}).filter(function (k) { return problems[k] && (problems[k].id || k) === sid; });
   };
   LAB.groupOf = function (data, sid) {
     return data.groups.filter(function (g) { return g.members.some(function (m) { return m.id === sid; }); })[0] || null;
