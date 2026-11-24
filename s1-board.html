@@ -32,6 +32,10 @@
 .cmts { display: flex; flex-direction: column; gap: 4px; font-size: 0.84rem; margin-bottom: 6px; }
 .cmts b { color: var(--stage); }
 .cmts .x { background: none; border: none; color: #adb5bd; cursor: pointer; font-size: 0.7rem; }
+.cmts .ed { color: #adb5bd; font-size: 0.7rem; }
+.cin.edit input { border-color: var(--stage); }
+.cin .ghost { background: #f1f3f5; color: #555; }
+.post .mine-edit { border: 1.5px solid var(--stage); background: #fff; color: var(--stage); border-radius: 999px; padding: 4px 12px; font-weight: 800; cursor: pointer; font-size: 0.78rem; font-family: inherit; margin-left: 6px; }
 .cin { display: flex; gap: 6px; }
 .cin input { flex: 1; padding: 8px 10px; font-size: 0.86rem; }
 .cin button { border: none; background: var(--stage); color: #fff; border-radius: 8px; padding: 0 14px; font-weight: 800; cursor: pointer; font-family: inherit; }
@@ -40,7 +44,8 @@
 .mine-row { display: flex; align-items: center; gap: 6px; padding: 6px 4px; border-top: 1px solid #edf0f5; font-size: 0.86rem; }
 .mine-row.on { background: var(--stage-soft); border-radius: 8px; }
 .mine-row .n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--stage); color: #fff; font-size: 0.72rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
-.mine-row .tt { flex: 1; min-width: 0; }
+.mine-row { flex-wrap: wrap; }
+.mine-row .tt { flex: 1 1 55%; min-width: 0; }
 .mine-row button { flex: none; border: 1.5px solid var(--border); background: #fff; border-radius: 8px; padding: 4px 8px; font-size: 0.74rem; cursor: pointer; font-family: inherit; }
 .topic-tag { font-size: 0.7rem; color: #fff; background: #212529; border-radius: 6px; padding: 0 5px; }
 .form-h { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; }
@@ -71,6 +76,7 @@
 <script>
 let ban, me, problems = {}, likes = {}, comments = {}, topics = [], sortMode = 'score', catFilter = '';
 const cin = {}; // 댓글 입력 초안 — 다시 그려도 지워지지 않게
+let cedit = null; // 고치는 중인 댓글 '문제키/댓글키'
 
 document.getElementById('cats').innerHTML = LAB.CATS.filter(c => c.id !== 'etc').map(c =>
   `<div class="catbox"><b>${c.icon} ${c.name}</b>${c.desc}${c.ex.map(e => `<span class="ex">예) ${LAB.esc(e)}</span>`).join('')}</div>`).join('');
@@ -179,10 +185,12 @@ function renderBoard() {
       <div class="cat">${c.icon} ${c.name}</div>
       <h3>${LAB.esc(p.title)}</h3>
       <div class="body"><span class="lbl">어떤 상황?</span>${LAB.nl2br(p.story)}${p.who ? `<span class="lbl">왜 함께 풀어야 할까?</span>${LAB.nl2br(p.who)}` : ''}</div>
-      <div class="by">${LAB.esc(p.name)}${mine ? ' (나)' : ''} · ${LAB.fmtTime(p.updatedAt)}</div>
+      <div class="by">${LAB.esc(p.name)}${mine ? ' (나)' : ''} · ${LAB.fmtTime(p.updatedAt)}${mine ? `<button class="mine-edit" data-editpost="${id}">✏️ 내 글 고치기</button>` : ''}</div>
       <div class="acts"><button class="like${liked ? ' on' : ''}" data-like="${id}" ${mine ? 'disabled title="내 글에는 누를 수 없어요"' : ''}>${liked ? '❤️' : '🤍'} 공감 ${nL}</button>
         <span class="like-names">${likeNames.length ? LAB.esc(likeNames.join(', ')) : ''}</span><span class="dc-muted">💬 ${cms.length}</span></div>
-      <div class="cmts">${cms.map(x => `<div><b>${LAB.esc(x.name)}</b> ${LAB.esc(x.text)} ${x.id === me || LAB.student.isTeacher ? `<button class="x" data-del="${id}/${x.k}">지우기</button>` : ''}</div>`).join('')}</div>
+      <div class="cmts">${cms.map(x => { const ck = id + '/' + x.k;
+        if (cedit === ck) return `<div class="cin edit"><input data-k="e:${ck}" maxlength="200" value="${LAB.escAttr(cin['e:' + ck] !== undefined ? cin['e:' + ck] : x.text)}"><button data-csave="${ck}">저장</button><button class="ghost" data-ccancel="1">취소</button></div>`;
+        return `<div><b>${LAB.esc(x.name)}</b> ${LAB.esc(x.text)}${x.edited ? ' <span class="ed">(수정됨)</span>' : ''} ${x.id === me ? `<button class="x" data-cedit="${ck}">고치기</button>` : ''}${x.id === me || LAB.student.isTeacher ? `<button class="x" data-del="${ck}">지우기</button>` : ''}</div>`; }).join('')}</div>
       <div class="cin"><input data-k="${id}" placeholder="댓글로 공감·경험·질문 남기기" maxlength="200" value="${LAB.escAttr(cin[id] || '')}"><button data-cm="${id}">등록</button></div>
     </div>`;
   }).join('');
@@ -209,6 +217,26 @@ document.getElementById('board').addEventListener('click', async e => {
     try { const r = await LAB.post(`comments/${ban}/${id}`, { id: me, name: LAB.student.name, text, ts: Date.now() });
       (comments[id] = comments[id] || {})[r.name] = { id: me, name: LAB.student.name, text, ts: Date.now() }; cin[id] = ''; inp.value = '';
     } catch (x) { alert('댓글을 저장하지 못했어요. 다시 눌러 주세요.'); }
+    return renderBoard();
+  }
+  if (b.dataset.editpost) {
+    editKey = b.dataset.editpost; myForm();
+    document.getElementById('myForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => { const t = document.getElementById('fTitle'); if (t) t.focus({ preventScroll: true }); }, 400);
+    return;
+  }
+  if (b.dataset.cedit) { cedit = b.dataset.cedit; delete cin['e:' + cedit]; renderBoard(); const el = document.querySelector(`.cin input[data-k="e:${cedit}"]`); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } return; }
+  if (b.dataset.ccancel) { delete cin['e:' + cedit]; cedit = null; return renderBoard(); }
+  if (b.dataset.csave) {
+    const ck = b.dataset.csave, [id, k] = ck.split('/'), inp = b.parentNode.querySelector('input'), text = inp.value.trim();
+    if (!text) return inp.focus();
+    b.disabled = true;
+    try {
+      const at = Date.now();
+      await LAB.patch(`comments/${ban}/${ck}`, { text, edited: at });
+      if (comments[id] && comments[id][k]) Object.assign(comments[id][k], { text, edited: at });
+      delete cin['e:' + ck]; cedit = null;
+    } catch (x) { alert('저장하지 못했어요. 다시 눌러 주세요.'); b.disabled = false; return; }
     return renderBoard();
   }
   if (b.dataset.del) {

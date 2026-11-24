@@ -28,6 +28,17 @@ table.t tr.sel td { background: #fff9db; }
 .kpi { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
 .kpi div { background: #f8f9fa; border-radius: 10px; padding: 8px; text-align: center; font-size: 0.74rem; color: #555; }
 .kpi b { display: block; font-size: 1.1rem; color: var(--text); }
+.grid-wrap { overflow-x: auto; }
+table.status th, table.status td { text-align: center; white-space: nowrap; }
+table.status td.nm { text-align: left; font-weight: 700; }
+table.status th.copy { cursor: pointer; }
+table.status th.copy:hover { background: #e7f5ff; }
+table.status th small { font-weight: 400; color: var(--text-muted); }
+td.ok { background: #ebfbee; color: #2b8a3e; font-weight: 700; } td.half { background: #fff9db; color: #e67700; font-weight: 700; }
+td.no { background: #fff0f0; color: #e03131; font-weight: 800; } td.na { color: #ced4da; }
+.legend { display: flex; gap: 6px; margin: 4px 0 8px; font-size: 0.74rem; }
+.legend .c { border-radius: 6px; padding: 2px 8px; }
+.legend .ok { background: #ebfbee; color: #2b8a3e; } .legend .half { background: #fff9db; color: #e67700; } .legend .no { background: #fff0f0; color: #e03131; } .legend .na { background: #f8f9fa; color: #adb5bd; }
 .rep-sec { margin: 6px 0; } .rep-sec b { display: block; font-size: 0.74rem; color: var(--stage); }
 </style>
 </head>
@@ -50,9 +61,9 @@ table.t tr.sel td { background: #fff9db; }
 <script src="lab.js?v=3"></script>
 <script>
 const PASSWORD = 'byung0703!';
-const TABS = [['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
-let tab = 't1', ban = '3-1', sel = [];
-try { tab = localStorage.getItem('last26AdminTab') || 't1'; ban = localStorage.getItem('last26AdminBan') || '3-1'; } catch (e) {}
+const TABS = [['t0', '📋 학급 현황'], ['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
+let tab = 't0', ban = '3-1', sel = [];
+try { tab = localStorage.getItem('last26AdminTab') || 't0'; ban = localStorage.getItem('last26AdminBan') || '3-1'; } catch (e) {}
 const E = LAB.esc;
 
 window.checkPw = function () {
@@ -73,8 +84,52 @@ function paintTabs() {
   document.getElementById('banSel').onchange = e => { ban = e.target.value; sel = []; save(); show(); };
 }
 function save() { try { localStorage.setItem('last26AdminTab', tab); localStorage.setItem('last26AdminBan', ban); } catch (e) {} }
-function show() { document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; ({ t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
+function show() { document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; ({ t0, t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
 const sv = (b, g) => `?ban=${encodeURIComponent(b)}&g=${encodeURIComponent(g)}`;
+
+// ---------- 📋 학급 현황 (학생 × 단계 제출 여부 한눈에) ----------
+async function t0() {
+  if (ban === 'T') { document.getElementById('view').innerHTML = '<div class="empty-state">학급 현황은 실제 반(3학년 1~5반)을 골라야 보여요.</div>'; return; }
+  const [roster, D, L, C, Q, F, R, CT, P, RS] = await Promise.all([LAB.classRoster(ban), LAB.loadGroups(ban), LAB.get(`likes/${ban}`), LAB.get(`comments/${ban}`),
+    LAB.get(`q/${ban}`), LAB.get(`final/${ban}`), LAB.get(`report/${ban}`), LAB.get(`contrib/${ban}`), LAB.get(`poster/${ban}`), LAB.get('resp')]);
+  const probs = D.problems, likes = L || {}, cmts = C || {}, q = Q || {}, fin = F || {}, rep = R || {}, ct = CT || {}, pos = P || {}, resp = RS || {};
+  const anyResp = Object.keys(resp).length > 0; // 설문 시작 전엔 '해당 없음'
+  const nProb = {}, nLike = {}, nCmt = {};
+  Object.keys(probs).forEach(k => { const a = probs[k].id || k; nProb[a] = (nProb[a] || 0) + 1; });
+  Object.keys(likes).forEach(k => Object.keys(likes[k] || {}).forEach(s => nLike[s] = (nLike[s] || 0) + 1));
+  Object.keys(cmts).forEach(k => Object.values(cmts[k] || {}).forEach(x => nCmt[x.id] = (nCmt[x.id] || 0) + 1));
+  const repN = g => Object.keys(rep[g] || {}).filter(k => rep[g][k] && rep[g][k].text).length;
+  // 칸 정의: [제목, 값(학생) → { ok:true/false/null(해당 없음), txt }]
+  const COLS = [
+    ['1️⃣ 문제 올림', s => ({ ok: !!nProb[s.id], txt: nProb[s.id] ? nProb[s.id] + '개' : '✗' })],
+    ['공감·댓글', s => { const n = (nLike[s.id] || 0) + (nCmt[s.id] || 0); return { ok: n > 0, txt: n ? `❤️${nLike[s.id] || 0} 💬${nCmt[s.id] || 0}` : '✗' }; }],
+    ['모둠', s => { const g = LAB.groupOf(D, s.id); return D.groups.length ? { ok: !!g, txt: g ? g.no + '모둠' : '✗' } : { ok: null, txt: '–' }; }],
+    ['2️⃣ 내 질문', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const d = (q[g.id] || {})[s.id]; const n = d ? ['survey', 'solution'].filter(k => d[k] && d[k].q).length : 0; return { ok: n === 2 ? true : n ? 'half' : false, txt: n ? n + '/2' : '✗' }; }],
+    ['모둠 내보냄', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const o = (fin[g.id] || {}).out; return { ok: !!(o && o.submitted), txt: o && o.submitted ? '🚀' : '✗' }; }],
+    ['3️⃣ 설문', s => { const r = resp[s.id]; if (!anyResp) return { ok: null, txt: '–' }; return { ok: r && r.done ? true : r && r.answers ? 'half' : false, txt: r && r.done ? '제출' : r && r.answers ? '하는 중' : '✗' }; }],
+    ['4️⃣ 보고서(모둠)', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const n = repN(g.id); return { ok: n === 6 ? true : n ? 'half' : false, txt: n + '/6' }; }],
+    ['내 기여', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const c = (ct[g.id] || {})[s.id]; return { ok: !!(c && c.text), txt: c && c.text ? '✓' : '✗' }; }],
+    ['포스터(모둠)', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; return { ok: !!pos[g.id], txt: pos[g.id] ? '🎨' : '✗' }; }],
+  ];
+  const cells = roster.map(s => COLS.map(c => c[1](s)));
+  const sum = COLS.map((c, j) => { const v = cells.map(r => r[j]).filter(x => x.ok !== null); return { done: v.filter(x => x.ok === true).length, all: v.length }; });
+  const cls = x => x.ok === true ? 'ok' : x.ok === 'half' ? 'half' : x.ok === false ? 'no' : 'na';
+  document.getElementById('view').innerHTML = `
+  <div class="card"><h2>📋 ${LAB.banLabel(ban)} 학급 현황 <span class="dc-muted">${roster.length}명 · 칸 제목을 누르면 안 한 학생 명단이 복사돼요</span></h2>
+    <div class="legend"><span class="c ok">완료</span><span class="c half">하는 중</span><span class="c no">안 함</span><span class="c na">해당 없음(모둠 전)</span></div>
+    <div class="grid-wrap"><table class="t status"><tr><th>번호</th><th>이름</th>${COLS.map((c, j) => `<th class="copy" data-col="${j}" title="안 한 학생 복사">${c[0]}<br><small>${sum[j].done}/${sum[j].all}</small></th>`).join('')}</tr>
+      ${roster.map((s, i) => `<tr><td>${s.num}</td><td class="nm">${E(s.name)}</td>${cells[i].map(x => `<td class="${cls(x)}">${x.txt}</td>`).join('')}</tr>`).join('')}
+    </table></div>
+    <div class="ok-msg" id="copyOk"></div>
+    <p class="hint" style="margin-top:8px">"하는 중"은 일부만 했다는 뜻이에요(질문 1/2, 설문 답하다 제출 전, 보고서 칸 일부). 모둠 칸은 모둠원 모두에게 같은 값이 보여요.</p></div>`;
+  document.querySelectorAll('[data-col]').forEach(th => th.onclick = () => {
+    const j = +th.dataset.col, miss = roster.filter((s, i) => cells[i][j].ok !== true && cells[i][j].ok !== null);
+    const t = miss.map(s => `${s.num} ${s.name}`).join(', ');
+    const ok = document.getElementById('copyOk');
+    ok.textContent = miss.length ? `${COLS[j][0].replace(/[^\sㄱ-힣()]/g, '').trim()} 안 한 학생 ${miss.length}명: ${t}` : '모두 했어요! 🎉'; ok.classList.add('show');
+    if (miss.length && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
+  });
+}
 
 // ---------- ① 문제·모둠 ----------
 async function t1() {
