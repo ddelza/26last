@@ -135,7 +135,7 @@ async function t0() {
 async function t1() {
   const [D, likes, comments, roster] = await Promise.all([LAB.loadGroups(ban), LAB.get(`likes/${ban}`), LAB.get(`comments/${ban}`), ban === 'T' ? [] : LAB.classRoster(ban)]);
   const L = likes || {}, C = comments || {}, P = D.problems;
-  const sc = id => Object.keys(L[id] || {}).length + Object.keys(C[id] || {}).length;
+  const sc = id => Object.keys(L[id] || {}).length * 10000 + Math.min(Object.keys(C[id] || {}).length, 9999);
   const ids = Object.keys(P).sort((a, b) => sc(b) - sc(a) || P[a].updatedAt - P[b].updatedAt);
   const topics = D.groups.map(g => g.id);
   if (!sel.length) sel = topics.slice();

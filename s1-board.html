@@ -154,7 +154,8 @@ async function saveMine() {
   }
 }
 
-const score = id => Object.keys(likes[id] || {}).length + Object.keys(comments[id] || {}).length;
+// 공감 수로 줄 세움 (공감이 같으면 댓글 많은 글 → 먼저 올라온 글)
+const score = id => Object.keys(likes[id] || {}).length * 10000 + Math.min(Object.keys(comments[id] || {}).length, 9999);
 function captureInputs() {
   document.querySelectorAll('.cin input').forEach(el => { cin[el.dataset.k] = el.value; });
   const a = document.activeElement;
@@ -190,7 +191,7 @@ function renderBoard() {
     const likeNames = Object.keys(lk).map(k => nameOf[k]).filter(Boolean);
     const cms = Object.keys(cm).map(k => Object.assign({ k }, cm[k])).sort((a, b) => a.ts - b.ts);
     return `<div class="post${mine ? ' mine' : ''}" data-pid="${id}">
-      ${rankOf[id] <= 5 && score(id) > 0 ? `<div class="rank">공감 ${rankOf[id]}위</div>` : ''}
+      ${rankOf[id] <= 5 && Object.keys(likes[id] || {}).length > 0 ? `<div class="rank">공감 ${rankOf[id]}위</div>` : ''}
       ${topics.includes(id) ? '<div class="rank" style="right:auto;left:12px;background:#212529">⭐ 모둠 주제</div>' : ''}
       <div class="cat">${c.icon} ${c.name}</div>
       <h3>${LAB.esc(p.title)}</h3>
