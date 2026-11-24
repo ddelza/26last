@@ -20,6 +20,13 @@ table.t tr.sel td { background: #fff9db; }
 .gcard { border: 1.5px solid #e9ecef; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-size: 0.84rem; }
 .gcard .h { font-weight: 800; margin-bottom: 4px; }
 .mem { display: inline-flex; align-items: center; gap: 2px; background: #f1f3f5; border-radius: 8px; padding: 2px 8px; margin: 2px; }
+.mem.fresh { animation: fresh 2.5s ease-out; }
+@keyframes fresh { 0%, 30% { background: #b2f2bb; box-shadow: 0 0 0 3px #69db7c; } 100% { background: #f1f3f5; box-shadow: none; } }
+.gcard.full { border-color: #8ce99a; }
+.live-dot { font-size: 0.7rem; color: #2b8a3e; font-weight: 800; animation: blink 1.6s infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+.pick-log { background: #f8f9fa; border-radius: 12px; padding: 8px 12px; margin-top: 10px; font-size: 0.8rem; max-height: 180px; overflow-y: auto; line-height: 1.7; }
+.pick-log .h { font-weight: 800; margin-bottom: 2px; }
 .mem button { border: none; background: none; color: #adb5bd; cursor: pointer; padding: 0 2px; }
 .switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1.5px solid #e9ecef; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
 .switch b { display: block; } .switch small { color: var(--text-muted); }
@@ -84,7 +91,7 @@ function paintTabs() {
   document.getElementById('banSel').onchange = e => { ban = e.target.value; sel = []; save(); show(); };
 }
 function save() { try { localStorage.setItem('last26AdminTab', tab); localStorage.setItem('last26AdminBan', ban); } catch (e) {} }
-function show() { document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; ({ t0, t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
+function show() { stopPickLive(); pickState = null; document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; ({ t0, t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
 const sv = (b, g) => `?ban=${encodeURIComponent(b)}&g=${encodeURIComponent(g)}`;
 
 // ---------- 📋 학급 현황 (학생 × 단계 제출 여부 한눈에) ----------
@@ -142,8 +149,6 @@ async function t1() {
   const author = id => (P[id] && P[id].id) || id;
   const nBy = {}; ids.forEach(id => nBy[author(id)] = (nBy[author(id)] || 0) + 1);
   const notPosted = roster.filter(s => !nBy[s.id]);
-  const assigned = {}; D.groups.forEach(g => g.members.forEach(m => assigned[m.id] = g));
-  const unassigned = roster.filter(s => !assigned[s.id]);
   const changed = JSON.stringify(sel) !== JSON.stringify(topics);
   document.getElementById('view').innerHTML = `
   <div class="card"><h2>1) 공감 많은 문제 5개 고르기 <span class="dc-muted">${LAB.banLabel(ban)} · 문제 ${ids.length}개 · 올린 사람 ${Object.keys(nBy).length}${roster.length ? ' / ' + roster.length : ''}명</span></h2>
@@ -158,16 +163,7 @@ async function t1() {
     <button class="btn" id="confirmTopics" ${changed && sel.length ? '' : 'disabled'} style="background:#212529">✅ 체크한 ${sel.length}개로 모둠 주제 확정${changed ? '' : ' (변경 없음)'}</button>
   </div>
 
-  <div class="card"><h2>2) 선착순 신청</h2>
-    <div class="switch ${D.conf.open ? 'on' : ''}"><div><b>${D.conf.open ? '🟢 신청 받는 중' : '⏸ 신청 닫힘'}</b><small>모둠당 정원(제안자 포함)</small>
-      <input type="text" id="cap" value="${D.cap}" style="width:60px;padding:4px 8px;margin-left:6px">명</div>
-      <button class="btn" id="togglePick" ${D.groups.length ? '' : 'disabled'} style="background:${D.conf.open ? '#e03131' : '#2b8a3e'}">${D.conf.open ? '마감하기' : '선착순 시작'}</button></div>
-    ${D.groups.map(g => `<div class="gcard"><div class="h">${g.no}모둠 · ${E(g.title)} <span class="pill ${g.members.length >= D.cap ? 'ok' : 'warn'}">${g.members.length}/${D.cap}</span></div>
-      ${g.members.map(m => `<span class="mem">${m.proposer ? '📌' : ''}${m.num || ''} ${E(m.name)}${m.proposer ? '' : `<button data-unpick="${m.id}" title="빼기">✕</button>`}</span>`).join('')}</div>`).join('')}
-    ${D.groups.length ? `<div class="gcard" style="background:#fff9db"><div class="h">🧭 아직 모둠 없는 학생 ${unassigned.length}명</div>
-      ${unassigned.map(s => `<span class="mem">${s.num} ${E(s.name)} <select data-assign="${s.id}" data-name="${E(s.name)}" data-num="${s.num}" style="width:auto;padding:2px 4px;font-size:0.74rem"><option value="">배정…</option>${D.groups.map(g => `<option value="${g.id}">${g.no}모둠</option>`).join('')}</select></span>`).join('') || '<span class="dc-muted">모두 배정됐어요 🎉</span>'}</div>` : ''}
-    <p class="hint">선생님 배정·빼기는 정원과 상관없이 바로 적용돼요. 학생 화면: <a href="s1-pick.html?ban=${ban}" target="_blank">모둠 정하기</a> · <a href="s1-board.html?ban=${ban}" target="_blank">게시판</a> (교사 계정 3000/김병선으로 로그인 상태일 때)</p>
-  </div>`;
+  <div class="card" id="pickCard"></div>`;
   const v = document.getElementById('view');
   v.querySelectorAll('[data-pick]').forEach(c => c.onchange = () => {
     const id = c.dataset.pick;
@@ -188,21 +184,82 @@ async function t1() {
     await Promise.all(sel.map(author).filter(a => D.picks[a]).map(a => LAB.del(`pick/${ban}/${a}`)));
     t1();
   };
-  document.getElementById('togglePick').onclick = async () => {
-    const cap = parseInt(document.getElementById('cap').value, 10) || 5;
-    if (!D.conf.open && !confirm(`${LAB.banLabel(ban)} 선착순 신청을 시작할까요? (정원 ${cap}명)\n학생 화면에 바로 열려요.`)) return;
-    await LAB.patch(`pick/${ban}/_config`, { open: !D.conf.open, cap }); t1();
-  };
-  v.querySelectorAll('[data-unpick]').forEach(b => b.onclick = async () => { if (confirm('이 학생을 모둠에서 뺄까요?')) { await LAB.del(`pick/${ban}/${b.dataset.unpick}`); t1(); } });
-  v.querySelectorAll('[data-assign]').forEach(s => s.onchange = async () => {
-    if (!s.value) return;
-    await LAB.put(`pick/${ban}/${s.dataset.assign}`, { topic: s.value, name: s.dataset.name, num: +s.dataset.num || 0, ts: LAB.TS, byTeacher: true }); t1();
-  });
+  pickState = { ban, D, roster, prev: D.picks };
+  paintPick();
+  startPickLive();
   v.querySelectorAll('[data-delp]').forEach(b => b.onclick = async () => {
     const id = b.dataset.delp;
     if (topics.includes(id)) return alert('모둠 주제로 확정된 문제는 지울 수 없어요. 먼저 주제에서 빼고 확정해 주세요.');
     if (!confirm(`${P[id].name}의 문제 글을 지울까요? (공감·댓글도 함께 지워져요, 되돌릴 수 없음)`)) return;
     await Promise.all([LAB.del(`problems/${ban}/${id}`), LAB.del(`likes/${ban}/${id}`), LAB.del(`comments/${ban}/${id}`)]); sel = sel.filter(x => x !== id); t1();
+  });
+}
+
+// ---------- ① 선착순 신청 현황 (실시간) ----------
+let pickState = null, pickLive = null, pickPoll = null, pickPending = false;
+const pickLog = {}; // 반 → [{t, html}]  학생들이 들어오고 옮기는 기록
+function stopPickLive() { if (pickLive) pickLive.close(); pickLive = null; clearInterval(pickPoll); pickPoll = null; }
+function startPickLive() {
+  stopPickLive();
+  const b = pickState.ban;
+  const refresh = async () => {
+    if (!pickState || pickState.ban !== b || tab !== 't1') return stopPickLive();
+    let raw; try { raw = await LAB.get(`pick/${b}`); } catch (e) { return; }
+    if (!pickState || pickState.ban !== b) return;
+    const D = LAB.buildGroups(raw, pickState.D.problems);
+    if (JSON.stringify(D.picks) === JSON.stringify(pickState.prev) && JSON.stringify(D.conf) === JSON.stringify(pickState.D.conf)) return;
+    logPickDiff(b, pickState.prev, D);
+    pickState.D = D; pickState.prev = D.picks;
+    paintPick();
+  };
+  pickLive = LAB.listen(`pick/${b}`, refresh);
+  pickPoll = setInterval(refresh, pickLive ? 8000 : 2500); // 실시간 연결이 끊겨도 놓치지 않게
+}
+function logPickDiff(b, old, D) {
+  const no = tid => { const g = D.groups.find(x => x.id === tid); return g ? g.no + '모둠' : '?'; };
+  const t = LAB.fmtTime(Date.now()).split(' ')[1], L = pickLog[b] = pickLog[b] || [];
+  pickState.fresh = {};
+  Object.keys(D.picks).forEach(id => {
+    const n = D.picks[id], o = old[id], who = `<b>${(n.num || '') + ' ' + E(n.name)}</b>`;
+    if (!o) { L.unshift({ t, html: `🟢 ${who} → ${no(n.topic)} 신청${n.byTeacher ? ' (선생님 배정)' : ''}` }); pickState.fresh[id] = 1; }
+    else if (o.topic !== n.topic) { L.unshift({ t, html: `🔀 ${who} ${no(o.topic)} → <b>${no(n.topic)}</b> 이동` }); pickState.fresh[id] = 1; }
+  });
+  Object.keys(old).forEach(id => { if (!D.picks[id]) L.unshift({ t, html: `⚪ <b>${(old[id].num || '') + ' ' + E(old[id].name)}</b> ${no(old[id].topic)} 신청 취소` }); });
+  L.splice(30);
+}
+function paintPick() {
+  const box = document.getElementById('pickCard'); if (!box || !pickState) return;
+  // 정원 칸을 고치거나 배정 목록을 펼친 중이면, 손을 뗄 때까지 다시 그리기를 미룬다
+  if (box.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) {
+    if (!pickPending) { pickPending = true; document.activeElement.addEventListener('blur', () => { pickPending = false; setTimeout(paintPick, 50); }, { once: true }); }
+    return;
+  }
+  const { D, roster } = pickState, fresh = pickState.fresh || {}; pickState.fresh = {};
+  const assigned = {}; D.groups.forEach(g => g.members.forEach(m => assigned[m.id] = g));
+  const unassigned = roster.filter(s => !assigned[s.id]);
+  const joined = roster.length ? roster.length - unassigned.length : Object.keys(assigned).length;
+  const log = pickLog[pickState.ban] || [];
+  box.innerHTML = `<h2>2) 선착순 신청 <span class="live-dot">● 실시간</span> <span class="dc-muted">모둠 정한 학생 ${joined}${roster.length ? ' / ' + roster.length : ''}명</span></h2>
+    <div class="switch ${D.conf.open ? 'on' : ''}"><div><b>${D.conf.open ? '🟢 신청 받는 중' : '⏸ 신청 닫힘'}</b><small>모둠당 정원(제안자 포함)</small>
+      <input type="text" id="cap" value="${D.cap}" style="width:60px;padding:4px 8px;margin-left:6px">명</div>
+      <button class="btn" id="togglePick" ${D.groups.length ? '' : 'disabled'} style="background:${D.conf.open ? '#e03131' : '#2b8a3e'}">${D.conf.open ? '마감하기' : '선착순 시작'}</button></div>
+    ${D.groups.map(g => `<div class="gcard${g.members.length >= D.cap ? ' full' : ''}"><div class="h">${g.no}모둠 · ${E(g.title)} <span class="pill ${g.members.length >= D.cap ? 'ok' : 'warn'}">${g.members.length}/${D.cap}${g.members.length >= D.cap ? ' 마감' : ''}</span></div>
+      ${g.members.map(m => `<span class="mem${fresh[m.id] ? ' fresh' : ''}">${m.proposer ? '📌' : ''}${m.num || ''} ${E(m.name)}${m.proposer ? '' : `<button data-unpick="${m.id}" title="빼기">✕</button>`}</span>`).join('')}</div>`).join('')}
+    ${D.groups.length ? `<div class="gcard" style="background:#fff9db"><div class="h">🧭 아직 모둠 없는 학생 ${unassigned.length}명</div>
+      ${unassigned.map(s => `<span class="mem">${s.num} ${E(s.name)} <select data-assign="${s.id}" data-name="${E(s.name)}" data-num="${s.num}" style="width:auto;padding:2px 4px;font-size:0.74rem"><option value="">배정…</option>${D.groups.map(g => `<option value="${g.id}">${g.no}모둠</option>`).join('')}</select></span>`).join('') || '<span class="dc-muted">모두 모둠을 정했어요! 🎉</span>'}</div>` : ''}
+    <div class="pick-log"><div class="h">📜 움직임 기록 <span class="dc-muted">(이 화면을 연 뒤부터)</span></div>${log.length ? log.map(x => `<div><span class="dc-muted">${x.t}</span> ${x.html}</div>`).join('') : '<div class="dc-muted">아직 움직임이 없어요. 학생이 신청하거나 옮기면 여기 바로 떠요.</div>'}</div>
+    <p class="hint">선생님 배정·빼기는 정원과 상관없이 바로 적용돼요. 학생 화면: <a href="s1-pick.html?ban=${pickState.ban}" target="_blank">모둠 정하기</a> · <a href="s1-board.html?ban=${pickState.ban}" target="_blank">게시판</a> (교사 계정 3000/김병선으로 로그인 상태일 때)</p>`;
+  const b = pickState.ban;
+  document.getElementById('togglePick').onclick = async () => {
+    const cap = parseInt(document.getElementById('cap').value, 10) || 5;
+    if (!D.conf.open && !confirm(`${LAB.banLabel(b)} 선착순 신청을 시작할까요? (정원 ${cap}명)\n학생 화면에 바로 열려요.`)) return;
+    await LAB.patch(`pick/${b}/_config`, { open: !D.conf.open, cap }); t1();
+  };
+  box.querySelectorAll('[data-unpick]').forEach(x => x.onclick = async () => { if (confirm('이 학생을 모둠에서 뺄까요?')) { await LAB.del(`pick/${b}/${x.dataset.unpick}`); } });
+  box.querySelectorAll('[data-assign]').forEach(x => x.onchange = async () => {
+    if (!x.value) return;
+    const v = x.value; x.blur();
+    await LAB.put(`pick/${b}/${x.dataset.assign}`, { topic: v, name: x.dataset.name, num: +x.dataset.num || 0, ts: LAB.TS, byTeacher: true });
   });
 }
 
