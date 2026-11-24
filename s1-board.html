@@ -49,6 +49,7 @@
 .mine-row button { flex: none; border: 1.5px solid var(--border); background: #fff; border-radius: 8px; padding: 4px 8px; font-size: 0.74rem; cursor: pointer; font-family: inherit; }
 .topic-tag { font-size: 0.7rem; color: #fff; background: #212529; border-radius: 6px; padding: 0 5px; }
 .form-h { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; }
+.resort { display: block; width: 100%; border: 1.5px dashed var(--stage); background: var(--stage-soft); color: var(--stage); border-radius: 12px; padding: 9px; font-weight: 800; font-size: 0.84rem; cursor: pointer; font-family: inherit; margin-bottom: 12px; }
 .locked { text-align: center; background: #fff; border-radius: 16px; padding: 26px 16px; color: #666; font-size: 0.9rem; }
 </style>
 </head>
@@ -76,6 +77,7 @@
 <script>
 let ban, me, problems = {}, likes = {}, comments = {}, topics = [], sortMode = 'score', catFilter = '';
 const cin = {}; // 댓글 입력 초안 — 다시 그려도 지워지지 않게
+let frozen = null; // 공감순 화면에 고정해 둔 순서
 let cedit = null; // 고치는 중인 댓글 '문제키/댓글키'
 
 document.getElementById('cats').innerHTML = LAB.CATS.filter(c => c.id !== 'etc').map(c =>
@@ -165,21 +167,29 @@ function renderBoard() {
   }
   const focus = captureInputs();
   const nameOf = {}; Object.values(problems).forEach(p => nameOf[p.id] = p.name); Object.values(comments).forEach(cs => Object.values(cs || {}).forEach(x => nameOf[x.id] = nameOf[x.id] || x.name));
-  const ranked = Object.keys(problems).sort((a, b) => score(b) - score(a) || (problems[a].updatedAt - problems[b].updatedAt));
-  const rankOf = {}; ranked.forEach((id, i) => rankOf[id] = i + 1);
-  let ids = sortMode === 'score' ? ranked : Object.keys(problems).sort((a, b) => problems[b].updatedAt - problems[a].updatedAt);
+  const born = id => problems[id].createdAt || problems[id].updatedAt;
+  const ranked = Object.keys(problems).sort((a, b) => score(b) - score(a) || (born(a) - born(b)));
+  // 읽는 동안 순서가 바뀌지 않게: 공감순은 처음 정렬한 순서를 그대로 쓰고(점수 숫자만 바뀜),
+  // 새로 올라온 글은 맨 뒤에 붙인다. 순위가 달라지면 안내 띠의 "다시 정렬"을 눌렀을 때만 다시 줄 세운다.
+  if (!frozen) frozen = ranked.slice();
+  const order = frozen.filter(id => problems[id]).concat(ranked.filter(id => !frozen.includes(id)));
+  const reordered = sortMode === 'score' && order.join() !== ranked.join();
+  const rankOf = {}; order.forEach((id, i) => rankOf[id] = i + 1);
+  const anchor = boardAnchor();
+  let ids = sortMode === 'score' ? order : Object.keys(problems).sort((a, b) => born(b) - born(a));
   if (catFilter) ids = ids.filter(id => problems[id].cat === catFilter);
   const usedCats = [...new Set(Object.values(problems).map(p => p.cat))];
   let h = `<div class="toolbar"><button data-sort="score" class="${sortMode === 'score' ? 'on' : ''}">🔥 공감 많은 순</button><button data-sort="new" class="${sortMode === 'new' ? 'on' : ''}">🕒 최신 순</button></div>
     <div class="toolbar"><button data-cat="" class="${!catFilter ? 'on' : ''}">전체 ${Object.keys(problems).length}</button>${LAB.CATS.filter(c => usedCats.includes(c.id)).map(c =>
       `<button data-cat="${c.id}" class="${catFilter === c.id ? 'on' : ''}">${c.icon} ${Object.values(problems).filter(p => p.cat === c.id).length}</button>`).join('')}</div>`;
+  if (reordered) h += '<button class="resort" data-resort="1">🔄 그새 공감 순위가 바뀌었어요 · 눌러서 다시 줄 세우기</button>';
   if (!ids.length) h += '<div class="empty-state">아직 올라온 문제가 없어요.</div>';
   h += ids.map(id => {
     const p = problems[id], c = LAB.cat(p.cat), lk = likes[id] || {}, cm = comments[id] || {};
     const liked = !!lk[me], mine = authorOf(id) === me, nL = Object.keys(lk).length;
     const likeNames = Object.keys(lk).map(k => nameOf[k]).filter(Boolean);
     const cms = Object.keys(cm).map(k => Object.assign({ k }, cm[k])).sort((a, b) => a.ts - b.ts);
-    return `<div class="post${mine ? ' mine' : ''}">
+    return `<div class="post${mine ? ' mine' : ''}" data-pid="${id}">
       ${rankOf[id] <= 5 && score(id) > 0 ? `<div class="rank">공감 ${rankOf[id]}위</div>` : ''}
       ${topics.includes(id) ? '<div class="rank" style="right:auto;left:12px;background:#212529">⭐ 모둠 주제</div>' : ''}
       <div class="cat">${c.icon} ${c.name}</div>
@@ -195,7 +205,14 @@ function renderBoard() {
     </div>`;
   }).join('');
   root.innerHTML = h;
-  if (focus) { const el = root.querySelector(`.cin input[data-k="${focus.k}"]`); if (el) { el.focus(); try { el.setSelectionRange(focus.s, focus.e); } catch (e) {} } }
+  if (anchor) { const el = root.querySelector(`.post[data-pid="${CSS.escape(anchor.id)}"]`); if (el) window.scrollBy(0, el.getBoundingClientRect().top - anchor.top); }
+  if (focus) { const el = root.querySelector(`.cin input[data-k="${focus.k}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(focus.s, focus.e); } catch (e) {} } }
+}
+// 다시 그리기 전, 화면 위쪽에 보이던 글과 그 위치를 기억 → 다시 그린 뒤 같은 글이 같은 자리에 오도록 스크롤을 맞춘다
+function boardAnchor() {
+  const posts = document.querySelectorAll('#board .post[data-pid]');
+  for (const el of posts) { const r = el.getBoundingClientRect(); if (r.bottom > 60) return { id: el.dataset.pid, top: r.top }; }
+  return null;
 }
 async function load() {
   const [p, l, c, pk] = await Promise.all([LAB.get(`problems/${ban}`), LAB.get(`likes/${ban}`), LAB.get(`comments/${ban}`), LAB.get(`pick/${ban}/_config/topics`)]);
@@ -203,7 +220,8 @@ async function load() {
 }
 document.getElementById('board').addEventListener('click', async e => {
   const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.sort) { sortMode = b.dataset.sort; return renderBoard(); }
+  if (b.dataset.sort) { sortMode = b.dataset.sort; frozen = null; return renderBoard(); }
+  if (b.dataset.resort) { frozen = null; renderBoard(); document.getElementById('board').scrollIntoView({ behavior: 'smooth' }); return; }
   if (b.dataset.cat !== undefined) { catFilter = b.dataset.cat; return renderBoard(); }
   if (b.dataset.like) {
     const id = b.dataset.like, path = `likes/${ban}/${id}/${me}`; b.disabled = true;
