@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>설문 결과 확인하기</title>
-<link rel="stylesheet" href="common.css?v=1">
+<link rel="stylesheet" href="common.css?v=2">
 <style>
 .part { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
 .part div { background: #f8f9fa; border-radius: 10px; padding: 8px 4px; font-size: 0.74rem; color: #555; }
@@ -25,7 +25,7 @@
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=3"></script>
+<script src="lab.js?v=4"></script>
 <script>
 let items = [], resps = {}, cur = 0, grade = '', myKey = null, roster = {};
 
@@ -46,7 +46,7 @@ function render() {
     <div class="card">
       ${mine ? '<span class="mine-tag">⭐ 우리 모둠 질문</span>' : ''}
       <div class="qhead">${LAB.nl2br(it.q.q)}</div>
-      <div class="qsub">${LAB.esc(LAB.banShort(it.ban))} ${it.out.no}모둠 · ${LAB.QTYPES[it.out.which].icon} ${LAB.QTYPES[it.out.which].name} · 문제: ${LAB.esc(it.out.title)}</div>
+      <div class="qsub">${LAB.esc(LAB.banShort(it.ban))} ${it.out.no}모둠 · ${LAB.QTYPES[it.out.which].icon} ${LAB.QTYPES[it.out.which].name}${it.out.q && it.out.q.focus ? ' (' + LAB.focusTag(it.out.q.focus) + ')' : ''} · 문제: ${LAB.esc(it.out.title)}</div>
       <div class="gf">${['', 1, 2, 3].map(g => `<button data-g="${g}" class="${String(grade) === String(g) ? 'on' : ''}">${g ? g + '학년만' : '전교생 전체'}</button>`).join('')}</div>
       ${LAB.resultHtml(it.q, resps, it.key, { grade })}
       <button class="btn ghost small" style="margin-top:12px" id="csv">⬇️ 이 질문 응답 내려받기 (엑셀·CSV)</button>

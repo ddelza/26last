@@ -4,13 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>질문 다듬기</title>
-<link rel="stylesheet" href="common.css?v=1">
+<link rel="stylesheet" href="common.css?v=2">
 <style>
 .types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .type { border-radius: 14px; padding: 12px 14px; font-size: 0.84rem; line-height: 1.6; }
 .type.survey { background: #e7f5ff; } .type.solution { background: #fff9db; }
 .type h3 { margin: 0 0 4px; font-size: 0.98rem; }
-.type .ex { font-size: 0.78rem; color: #555; margin-top: 6px; }
+.type .ex { font-size: 0.76rem; color: #666; margin-top: 2px; }
+.type .sub { background: rgba(255,255,255,.7); border-radius: 10px; padding: 6px 10px; margin-top: 6px; }
+.type .sub b { color: #212529; }
+.type.check { background: #f3f0ff; margin-top: 10px; }
 @media (max-width: 560px) { .types { grid-template-columns: 1fr; } }
 .qbox { border: 1.5px solid #e9ecef; border-radius: 14px; padding: 12px 14px; margin-top: 12px; }
 .qbox > .h { font-weight: 900; margin-bottom: 6px; }
@@ -50,7 +53,7 @@
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=3"></script>
+<script src="lab.js?v=4"></script>
 <script>
 let ban, G, me, members = [], drafts = {}, fin = {}, surveyCfg = {}, imgData = null, imgLoaded = false;
 const eds = {}; // 편집기: my_survey, my_solution, fin_survey, fin_solution
@@ -73,11 +76,11 @@ function render() {
   document.getElementById('main').innerHTML = LAB.groupBannerHtml(G, ban) + `
   <div class="card">
     <h2>🎯 이번 단계에서 할 일</h2>
-    <p class="hint" style="margin:0 0 10px">우리 모둠 문제를 풀려면 <b>전교생에게 무엇을 물어봐야 할까요?</b> 질문은 두 종류가 있어요.</p>
-    <div class="types">
-      <div class="type survey"><h3>${T.survey.icon} ${T.survey.name}</h3>${T.survey.desc}<div class="ex">${T.survey.ex}</div></div>
-      <div class="type solution"><h3>${T.solution.icon} ${T.solution.name}</h3>${T.solution.desc}<div class="ex">${T.solution.ex}</div></div>
+    <p class="hint" style="margin:0 0 10px">우리 모둠 문제를 풀려면 <b>전교생에게 무엇을 물어봐야 할까요?</b> 질문은 크게 두 종류, 자세히는 네 가지예요.</p>
+    <div class="types">${['survey', 'solution'].map(k => `<div class="type ${k}"><h3>${T[k].icon} ${T[k].name}</h3>${T[k].desc}
+      ${T[k].subs.map(id => { const f = LAB.FOCUS[id]; return `<div class="sub"><b>${f.no} ${f.name}</b> ${f.ask}<div class="ex">${f.ex}</div></div>`; }).join('')}</div>`).join('')}
     </div>
+    <div class="type check"><h3>🔁 [선택] ${LAB.CHECK.no} ${LAB.CHECK.name}</h3>${LAB.CHECK.ask}. 4단계에서 해결 방안을 실제로 해 볼 수 있다면, 우리 설문 질문을 <b>그대로 다시</b> 물어 전과 후를 비교해 봐요. 숫자가 달라졌다면 해결 방안이 효과가 있었다는 증거예요!</div>
     <div class="tip"><b>✅ 좋은 설문 질문 체크리스트</b><ul>
       <li><b>한 번에 하나만</b> 물어요. ("잠이 부족하고 피곤한가요?" ✗ → 두 개로 나누기)</li>
       <li><b>답을 정해 놓고 묻지 않아요.</b> ("폰 사용 규칙이 꼭 필요하죠?" ✗)</li>
@@ -112,10 +115,10 @@ function render() {
   <div class="step-h"><div class="n">4</div><h2>딱 하나 골라 설문에 내보내기<span class="sub">모둠이 함께 신중하게 결정해요</span></h2></div>
   <div class="card" id="outBox"></div>`;
 
-  eds.my_survey = LAB.qEditor(document.getElementById('ed_my_survey'), drafts[me] && drafts[me].survey, { placeholder: '예) 평일에 잠드는 시각은 보통 언제인가요?' });
-  eds.my_solution = LAB.qEditor(document.getElementById('ed_my_solution'), drafts[me] && drafts[me].solution, { placeholder: '예) 쉬는 시간 화장실 줄을 줄이려면 무엇이 가장 도움이 될까요?' });
+  eds.my_survey = LAB.qEditor(document.getElementById('ed_my_survey'), drafts[me] && drafts[me].survey, { subs: T.survey.subs });
+  eds.my_solution = LAB.qEditor(document.getElementById('ed_my_solution'), drafts[me] && drafts[me].solution, { subs: T.solution.subs });
   ['survey', 'solution'].forEach(k => {
-    eds['fin_' + k] = LAB.qEditor(document.getElementById('ed_fin_' + k), fin[k], { onInput: renderOutPreview });
+    eds['fin_' + k] = LAB.qEditor(document.getElementById('ed_fin_' + k), fin[k], { subs: T[k].subs, onInput: renderOutPreview });
     base[k] = fin[k] ? fin[k].at : 0; lastLine(k);
   });
   document.getElementById('mySave').onclick = saveMine;
@@ -156,7 +159,7 @@ async function saveMine() {
 async function saveFinal(k) {
   const err = document.getElementById('finErr_' + k), ok = document.getElementById('finOk_' + k); err.classList.remove('show'); ok.classList.remove('show');
   if (outLocked()) { err.textContent = '이미 설문에 내보냈어요. 고치려면 ④에서 먼저 "내보내기 취소"를 눌러요.'; err.classList.add('show'); return; }
-  const v = eds['fin_' + k].get(), msg = LAB.checkQ(v);
+  const v = eds['fin_' + k].get(), msg = LAB.checkQ(v, true);
   if (msg) { err.textContent = msg; err.classList.add('show'); return; }
   try {
     const cur = await LAB.get(`final/${ban}/${G.id}/${k}`);
@@ -173,7 +176,7 @@ const outLocked = () => !!(fin.out && fin.out.submitted);
 function renderOut() {
   const box = document.getElementById('outBox'), o = fin.out || {};
   if (outLocked()) {
-    box.innerHTML = `<div class="sent"><div class="big">🚀</div><b>설문에 내보냈어요!</b><div class="dc-muted">${LAB.esc(o.byName)} · ${LAB.fmtTime(o.at)} · ${T[o.which].icon} ${T[o.which].name} · ${LAB.SHOWS[o.show].name}</div></div>
+    box.innerHTML = `<div class="sent"><div class="big">🚀</div><b>설문에 내보냈어요!</b><div class="dc-muted">${LAB.esc(o.byName)} · ${LAB.fmtTime(o.at)} · ${T[o.which].icon} ${T[o.which].name}${o.q && o.q.focus ? ' (' + LAB.focusTag(o.q.focus) + ')' : ''} · ${LAB.SHOWS[o.show].name}</div></div>
       <div class="preview"><div class="pv-h">👀 전교생에게 이렇게 보여요</div>${surveyPreviewHtml(o, o.show === 'full' ? imgData : null)}</div>
       <div class="saved-box"><div class="t">🗣️ 이 질문을 고른 이유</div>${LAB.nl2br(o.reason)}</div>
       ${surveyCfg.open ? '<p class="hint" style="margin-top:10px;text-align:center">설문이 이미 시작되어 고칠 수 없어요.</p>' : '<button class="btn danger" id="unsend">↩️ 내보내기 취소하고 다시 고치기</button>'}`;
@@ -182,11 +185,11 @@ function renderOut() {
   }
   const has = k => fin[k] && fin[k].q;
   box.innerHTML = `
-    <p class="hint">설문에는 우리 모둠 질문이 <b>딱 하나만</b> 나가요. 우리 문제를 해결하는 데 <b>실태 조사</b>와 <b>해법 탐색</b> 중 무엇이 지금 더 필요할까요?<br>
-      "이 문제가 진짜 있다는 증거가 아직 부족하다" → 실태 조사 / "다들 문제인 건 안다, 어떻게 풀지가 궁금하다" → 해법 탐색</p>
+    <p class="hint">설문에는 우리 모둠 질문이 <b>딱 하나만</b> 나가요. 우리 문제를 해결하는 데 <b>실태 파악</b>과 <b>문제 해결</b> 중 무엇이 지금 더 필요할까요?<br>
+      "이 문제가 진짜 있다는 증거가 아직 부족하다" → 실태 파악(①심각성·②원인) / "다들 문제인 건 안다, 어떻게 풀지가 궁금하다" → 문제 해결(③선호·의견·④아이디어)</p>
     <label class="field-label">어떤 질문을 내보낼까요?</label>
     <div class="which">${['survey', 'solution'].map(k => `<label class="chip ${has(k) ? '' : 'disabled'}"><span><input type="radio" name="which" value="${k}" ${o.which === k ? 'checked' : ''} ${has(k) ? '' : 'disabled'}> ${T[k].icon} ${T[k].name}</span>
-      <small>${has(k) ? LAB.esc(fin[k].q) : '③에서 먼저 저장해요'}</small></label>`).join('')}</div>
+      <small>${has(k) ? (fin[k].focus ? '[' + LAB.focusTag(fin[k].focus) + '] ' : '') + LAB.esc(fin[k].q) : '③에서 먼저 저장해요'}</small></label>`).join('')}</div>
     <label class="field-label" for="reason">왜 이 질문을 골랐나요? <span class="dc-muted">(모둠 토의 결과 — 보고서에도 쓰여요)</span></label>
     <textarea id="reason" rows="3" placeholder="예) 우리 반에서는 다들 공감했지만 1·2학년도 그런지는 모른다. 해결책을 묻기 전에 문제가 얼마나 퍼져 있는지 먼저 확인하는 게 중요하다고 결정했다.">${LAB.esc(o.reason || '')}</textarea>
     <label class="field-label">설문에서 어떻게 보여 줄까요?</label>

@@ -65,13 +65,26 @@
   LAB.cat = function (id) { return LAB.CATS.filter(function (c) { return c.id === id; })[0] || LAB.CATS[LAB.CATS.length - 1]; };
 
   LAB.QTYPES = {
-    survey: { icon: '📊', name: '실태 조사 질문', short: '실태 조사',
-      desc: '이 문제가 <b>지금 실제로 얼마나, 누구에게, 어떻게</b> 일어나고 있는지 알아보는 질문이에요. "진짜 문제가 맞나? 얼마나 심각하지?"를 숫자로 확인할 수 있어요.',
-      ex: '예) 평일에 잠드는 시각은 보통 언제인가요? / 지난 한 달 동안 단톡방에서 불편한 일을 겪은 적이 있나요?' },
-    solution: { icon: '💡', name: '해법 탐색 질문', short: '해법 탐색',
-      desc: '이 문제를 <b>어떻게 풀면 좋을지, 사람들이 어떤 해결책을 원하고 실제로 따라 줄지</b> 알아보는 질문이에요. 우리 해결 방안이 "먹힐지" 미리 확인할 수 있어요.',
-      ex: '예) 잠자기 1시간 전 휴대폰 끄기 챌린지가 있다면 참여할 생각이 있나요? / 쉬는 시간 줄을 줄이려면 무엇이 가장 도움이 될까요?' },
+    survey: { icon: '📊', name: '실태 파악 질문', short: '실태 파악',
+      desc: '이 문제가 <b>지금 실제로 얼마나 심각한지, 왜 생기는지</b> 알아보는 질문이에요. "진짜 문제가 맞나?"를 숫자로 확인할 수 있어요.',
+      subs: ['serious', 'cause'] },
+    solution: { icon: '💡', name: '문제 해결 질문', short: '문제 해결',
+      desc: '이 문제를 <b>어떻게 풀면 좋을지</b> 알아보는 질문이에요. 친구들이 원하는 것, 좋은 아이디어를 모아 우리 해결 방안이 "먹힐지" 미리 확인해요.',
+      subs: ['pref', 'idea'] },
   };
+  // 질문 유형을 한 단계 더 쪼갠 "무엇을 알아보는 질문인가" (①~④) + 선택 ⑤
+  LAB.FOCUS = {
+    serious: { no: '①', name: '심각성', ask: '얼마나 자주 겪나? 얼마나 문제라고 느끼나?', kind: 'survey',
+      ex: '예) 지난 일주일 동안 쉬는 시간 화장실 줄 때문에 수업에 늦은 적이 몇 번인가요?' },
+    cause: { no: '②', name: '원인', ask: '왜 생길까?', kind: 'survey',
+      ex: '예) 평일에 늦게 자게 되는 가장 큰 이유는 무엇인가요?' },
+    pref: { no: '③', name: '선호·의견', ask: '친구들은 무엇을 원할까?', kind: 'solution',
+      ex: '예) 다음 중 쉬는 시간 화장실 줄을 줄이는 방법으로 가장 마음에 드는 것은?' },
+    idea: { no: '④', name: '아이디어', ask: '어떻게 바꾸면 좋을까?', kind: 'solution',
+      ex: '예) 단톡방 말다툼을 줄이려면 어떤 규칙이 있으면 좋을까요? 자유롭게 써 주세요.' },
+  };
+  LAB.CHECK = { no: '⑤', name: '효과 확인', ask: '해 본 뒤 같은 질문을 다시 물어 비교해요', opt: true };
+  LAB.focusTag = function (id) { var f = LAB.FOCUS[id]; return f ? f.no + ' ' + f.name : ''; };
   LAB.SHOWS = {
     q: { icon: '❓', name: '질문만 보여 주기', desc: '응답자는 질문만 봐요. 문제를 미리 알려 주지 않아 솔직한 답을 받을 수 있어요.' },
     problem: { icon: '📌', name: '우리 문제 + 질문', desc: '우리 모둠이 고른 문제를 함께 보여 줘요. 왜 묻는지 알고 답할 수 있어요.' },
@@ -246,16 +259,18 @@
   function normQ(v) {
     v = v || {};
     return { q: v.q || '', type: v.type === 'open' ? 'open' : 'choice', options: (v.options && v.options.length ? v.options.slice() : ['', '']),
-      multi: !!v.multi, etc: !!v.etc };
+      multi: !!v.multi, etc: !!v.etc, focus: LAB.FOCUS[v.focus] ? v.focus : '' };
   }
   LAB.cleanQ = function (v) {
     v = normQ(v);
     var o = { q: v.q.trim(), type: v.type };
+    if (v.focus) o.focus = v.focus;
     if (v.type === 'choice') { o.options = v.options.map(function (x) { return String(x || '').trim(); }).filter(Boolean); o.multi = v.multi; o.etc = v.etc; }
     return o;
   };
-  LAB.checkQ = function (v) {
+  LAB.checkQ = function (v, needFocus) {
     v = LAB.cleanQ(v);
+    if (needFocus && !v.focus) return '무엇을 알아보는 질문인지(①~④) 먼저 골라 주세요.';
     if (!v.q) return '질문을 써 주세요.';
     if (v.type === 'choice' && v.options.length < 2) return '객관식은 보기가 2개 이상 있어야 해요.';
     return '';
@@ -271,9 +286,15 @@
       if (ops.length) st.options = Array.prototype.map.call(ops, function (e) { return e.value; });
       var m = root.querySelector('.qe-multi'); if (m) st.multi = m.checked;
       var e = root.querySelector('.qe-etc'); if (e) st.etc = e.checked;
+      var f = root.querySelector('input[name="' + uid + 'f"]:checked'); if (f) st.focus = f.value;
     }
     function draw(focusIdx) {
-      var h = '<textarea class="qe-q" rows="2" placeholder="' + LAB.escAttr(opts.placeholder || '전교생에게 물어볼 질문을 써요') + '">' + LAB.esc(st.q) + '</textarea>' +
+      var subs = opts.subs || [], fo = LAB.FOCUS[st.focus];
+      var h = (subs.length ? '<div class="qe-focus"><div class="qe-fh">무엇을 알아보는 질문인가요?</div>' + subs.map(function (id) {
+          var f = LAB.FOCUS[id];
+          return '<label class="chip"><input type="radio" name="' + uid + 'f" value="' + id + '"' + (st.focus === id ? ' checked' : '') + '><span><b>' + f.no + ' ' + f.name + '</b> <small>' + f.ask + '</small></span></label>';
+        }).join('') + '</div>' : '') +
+        '<textarea class="qe-q" rows="2" placeholder="' + LAB.escAttr(fo ? fo.ex : (opts.placeholder || '전교생에게 물어볼 질문을 써요')) + '">' + LAB.esc(st.q) + '</textarea>' +
         '<div class="qe-type">' +
         '<label class="chip"><input type="radio" name="' + uid + '" value="choice"' + (st.type === 'choice' ? ' checked' : '') + '><span>☑️ 객관식 (보기 중에 고르기)</span></label>' +
         '<label class="chip"><input type="radio" name="' + uid + '" value="open"' + (st.type === 'open' ? ' checked' : '') + '><span>✍️ 주관식 (직접 쓰기)</span></label></div>';
@@ -302,6 +323,7 @@
     });
     root.addEventListener('change', function (e) {
       if (e.target.name === uid) { readDom(); draw(); }
+      if (e.target.name === uid + 'f') { readDom(); var ta = root.querySelector('.qe-q'); if (ta) ta.placeholder = LAB.FOCUS[st.focus].ex; }
       if (opts.onInput) opts.onInput();
     });
     root.addEventListener('input', function () { if (opts.onInput) opts.onInput(); });
@@ -314,7 +336,7 @@
   // 질문 미리보기 (읽기 전용)
   LAB.qViewHtml = function (v, small) {
     if (!v || !v.q) return '<div class="dc-muted">(아직 없음)</div>';
-    var h = '<div class="qv' + (small ? ' small' : '') + '"><div class="qv-q">' + LAB.nl2br(v.q) + '</div>';
+    var h = '<div class="qv' + (small ? ' small' : '') + '">' + (v.focus ? '<span class="qv-focus">' + LAB.focusTag(v.focus) + '</span>' : '') + '<div class="qv-q">' + LAB.nl2br(v.q) + '</div>';
     if (v.type === 'choice') {
       h += '<div class="qv-meta">☑️ 객관식' + (v.multi ? ' · 여러 개 선택' : '') + '</div><ol class="qv-opts">' +
         (v.options || []).map(function (o) { return '<li>' + LAB.esc(o) + '</li>'; }).join('') + (v.etc ? '<li class="etc">기타(직접 쓰기)</li>' : '') + '</ol>';

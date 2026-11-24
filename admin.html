@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>교사용 관리</title>
-<link rel="stylesheet" href="common.css?v=1">
+<link rel="stylesheet" href="common.css?v=2">
 <style>
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
 .tabs button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; cursor: pointer; font-family: inherit; font-size: 0.84rem; }
@@ -58,7 +58,7 @@ td.no { background: #fff0f0; color: #e03131; font-weight: 800; } td.na { color: 
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=3"></script>
+<script src="lab.js?v=4"></script>
 <script>
 const PASSWORD = 'byung0703!';
 const TABS = [['t0', '📋 학급 현황'], ['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
@@ -218,7 +218,7 @@ async function t2() {
       const wrote = g.members.filter(m => d[m.id]).length;
       return `<div class="card"><h2>${g.no}모둠 · ${E(g.title)}</h2>
         <div style="font-size:0.84rem;margin-bottom:8px">① 개인 질문 <span class="pill ${wrote === g.members.length ? 'ok' : 'warn'}">${wrote}/${g.members.length}명</span>
-          ② 최종 실태 <span class="pill ${fx.survey ? 'ok' : 'no'}">${fx.survey ? '✓' : '–'}</span> 최종 해법 <span class="pill ${fx.solution ? 'ok' : 'no'}">${fx.solution ? '✓' : '–'}</span>
+          ② 최종 실태 파악 <span class="pill ${fx.survey ? 'ok' : 'no'}">${fx.survey ? '✓' : '–'}</span> 최종 문제 해결 <span class="pill ${fx.solution ? 'ok' : 'no'}">${fx.solution ? '✓' : '–'}</span>
           ③ 내보내기 <span class="pill ${o && o.submitted ? 'ok' : 'no'}">${o && o.submitted ? '🚀 ' + LAB.QTYPES[o.which].short + ' · ' + LAB.SHOWS[o.show].name : '아직'}</span></div>
         ${o && o.submitted ? LAB.qViewHtml(o.q, true) + `<div class="saved-box"><div class="t">고른 이유</div>${LAB.nl2br(o.reason)}${o.note ? '<div class="t" style="margin-top:6px">보충 설명</div>' + LAB.nl2br(o.note) : ''}</div>` : ''}
         <details style="margin-top:8px;font-size:0.82rem"><summary>개인 질문 보기</summary>${g.members.map(m => `<div style="margin:6px 0"><b>${E(m.name)}</b> 📊 ${E(d[m.id] && d[m.id].survey && d[m.id].survey.q || '–')} / 💡 ${E(d[m.id] && d[m.id].solution && d[m.id].solution.q || '–')}</div>`).join('')}</details>
