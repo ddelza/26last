@@ -71,7 +71,7 @@ td.no { background: #fff0f0; color: #e03131; font-weight: 800; } td.na { color: 
 <script src="../lab.js?v=6"></script>
 <script src="../demo-seed.js?v=2"></script>
 <script>
-const PASSWORD = 'byung0703!';
+const PASSWORDS = ['byung0703!', '7683101!'];
 const TABS = [['t0', '📋 학급 현황'], ['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
 let tab = 't0', ban = '3-1', sel = [];
 try { tab = localStorage.getItem('last26AdminTab') || 't0'; ban = localStorage.getItem('last26AdminBan') || '3-1'; } catch (e) {}
@@ -79,7 +79,7 @@ if (LAB.DEMO && ban === 'T') ban = '3-1';
 const E = LAB.esc;
 
 window.checkPw = function () {
-  if (document.getElementById('pw').value !== PASSWORD) return document.getElementById('pwErr').classList.add('show');
+  if (!PASSWORDS.includes(document.getElementById('pw').value)) return document.getElementById('pwErr').classList.add('show');
   try { sessionStorage.setItem('last26Admin', '1'); } catch (e) {}
   open();
 };
