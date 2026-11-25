@@ -20,6 +20,9 @@ table.t tr.sel td { background: #fff9db; }
 .gcard { border: 1.5px solid #e9ecef; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-size: 0.84rem; }
 .gcard .h { font-weight: 800; margin-bottom: 4px; }
 .mem { display: inline-flex; align-items: center; gap: 2px; background: #f1f3f5; border-radius: 8px; padding: 2px 8px; margin: 2px; }
+.mem select.mv { width: auto; border: none; background: none; padding: 0 2px; font-size: 0.74rem; color: #868e96; cursor: pointer; }
+.arrange { background: #f3f0ff; border-radius: 12px; padding: 10px 12px; margin: 10px 0; }
+.arrange .h { font-weight: 800; font-size: 0.86rem; }
 .mem.fresh { animation: fresh 2.5s ease-out; }
 @keyframes fresh { 0%, 30% { background: #b2f2bb; box-shadow: 0 0 0 3px #69db7c; } 100% { background: #f1f3f5; box-shadow: none; } }
 .gcard.full { border-color: #8ce99a; }
@@ -253,8 +256,12 @@ function paintPick() {
     <div class="switch ${D.conf.open ? 'on' : ''}"><div><b>${D.conf.open ? '🟢 신청 받는 중' : '⏸ 신청 닫힘'}</b><small>모둠당 정원(제안자 포함)</small>
       <input type="text" id="cap" value="${D.cap}" style="width:60px;padding:4px 8px;margin-left:6px">명</div>
       <button class="btn" id="togglePick" ${D.groups.length ? '' : 'disabled'} style="background:${D.conf.open ? '#e03131' : '#2b8a3e'}">${D.conf.open ? '마감하기' : '선착순 시작'}</button></div>
+    ${D.groups.length ? `<div class="arrange"><div class="h">✋ 선생님이 직접 편성하기 <span class="dc-muted">선착순 없이 바로 정하거나, 신청이 끝난 뒤 고칠 때</span></div>
+      <div class="btn-row" style="margin:6px 0 4px"><button class="btn small ghost" id="autoRest" ${roster.length && unassigned.length ? '' : 'disabled'}>🎲 남은 ${unassigned.length}명 자동 배정</button>
+        <button class="btn small ghost" id="shuffleAll" ${roster.length ? '' : 'disabled'}>🔀 처음부터 무작위 편성</button></div>
+      <p class="hint" style="margin:0">학생 이름 옆 <b>↔</b>로 다른 모둠에 옮기고, <b>✕</b>로 빼요. 자동 배정은 인원이 적은 모둠부터 고르게 채워요(정원을 넘을 수도 있어요). 📌 문제를 낸 학생은 자기 모둠에 고정이라 옮길 수 없어요.${D.conf.open ? '<br>⚠️ 지금 <b>신청 받는 중</b>이라 학생이 다시 옮길 수 있어요. 편성을 마쳤으면 <b>마감하기</b>를 눌러 주세요.' : ''}${roster.length ? '' : '<br>(교사 테스트 반은 명단이 없어 자동 편성을 쓸 수 없어요)'}</p></div>` : ''}
     ${D.groups.map(g => `<div class="gcard${g.members.length >= D.cap ? ' full' : ''}"><div class="h">${g.no}모둠 · ${E(g.title)} <span class="pill ${g.members.length >= D.cap ? 'ok' : 'warn'}">${g.members.length}/${D.cap}${g.members.length >= D.cap ? ' 마감' : ''}</span></div>
-      ${g.members.map(m => `<span class="mem${fresh[m.id] ? ' fresh' : ''}">${m.proposer ? '📌' : ''}${m.num || ''} ${E(m.name)}${m.proposer ? '' : `<button data-unpick="${m.id}" title="빼기">✕</button>`}</span>`).join('')}</div>`).join('')}
+      ${g.members.map(m => `<span class="mem${fresh[m.id] ? ' fresh' : ''}">${m.proposer ? '📌' : ''}${m.num || ''} ${E(m.name)}${m.proposer ? '' : `<select class="mv" data-move="${m.id}" data-name="${E(m.name || '')}" data-num="${m.num || 0}" title="다른 모둠으로 옮기기"><option value="">↔</option>${D.groups.filter(x => x.id !== g.id).map(x => `<option value="${x.id}">${x.no}모둠으로</option>`).join('')}</select><button data-unpick="${m.id}" title="빼기">✕</button>`}</span>`).join('')}</div>`).join('')}
     ${D.groups.length ? `<div class="gcard" style="background:#fff9db"><div class="h">🧭 아직 모둠 없는 학생 ${unassigned.length}명</div>
       ${unassigned.map(s => `<span class="mem">${s.num} ${E(s.name)} <select data-assign="${s.id}" data-name="${E(s.name)}" data-num="${s.num}" style="width:auto;padding:2px 4px;font-size:0.74rem"><option value="">배정…</option>${D.groups.map(g => `<option value="${g.id}">${g.no}모둠</option>`).join('')}</select></span>`).join('') || '<span class="dc-muted">모두 모둠을 정했어요! 🎉</span>'}</div>` : ''}
     <div class="pick-log"><div class="h">📜 움직임 기록 <span class="dc-muted">(이 화면을 연 뒤부터)</span></div>${log.length ? log.map(x => `<div><span class="dc-muted">${x.t}</span> ${x.html}</div>`).join('') : '<div class="dc-muted">아직 움직임이 없어요. 학생이 신청하거나 옮기면 여기 바로 떠요.</div>'}</div>
@@ -264,6 +271,39 @@ function paintPick() {
     const cap = parseInt(document.getElementById('cap').value, 10) || 5;
     if (!D.conf.open && !confirm(`${LAB.banLabel(b)} 선착순 신청을 시작할까요? (정원 ${cap}명)\n학생 화면에 바로 열려요.`)) return;
     await LAB.patch(`pick/${b}/_config`, { open: !D.conf.open, cap }); t1();
+  };
+  box.querySelectorAll('[data-move]').forEach(x => x.onchange = async () => {
+    if (!x.value) return;
+    const v = x.value; x.blur();
+    await LAB.put(`pick/${b}/${x.dataset.move}`, { topic: v, name: x.dataset.name, num: +x.dataset.num || 0, ts: LAB.TS, byTeacher: true });
+  });
+  // 고르게 나누기: 인원이 가장 적은 모둠부터 (같으면 무작위)
+  const spread = (students, base) => {
+    const size = {}; D.groups.forEach(g => size[g.id] = base(g));
+    const list = students.slice().sort(() => Math.random() - 0.5), out = {}, now = Date.now();
+    list.forEach((s, i) => {
+      const min = Math.min(...Object.values(size)), cand = D.groups.filter(g => size[g.id] === min);
+      const g = cand[Math.floor(Math.random() * cand.length)]; size[g.id]++;
+      out[s.id] = { topic: g.id, name: s.name, num: s.num || 0, ts: now + i, byTeacher: true };
+    });
+    return out;
+  };
+  const ar = document.getElementById('autoRest');
+  if (ar) ar.onclick = async () => {
+    if (!confirm(`아직 모둠이 없는 ${unassigned.length}명을 인원이 적은 모둠부터 고르게 배정할까요?`)) return;
+    ar.disabled = true; await LAB.patch(`pick/${b}`, spread(unassigned, g => g.members.length));
+  };
+  const sa = document.getElementById('shuffleAll');
+  if (sa) sa.onclick = async () => {
+    const fixed = new Set(D.groups.map(g => g.author)), pool = roster.filter(s => !fixed.has(s.id));
+    if (!confirm(`${LAB.banLabel(b)} 모둠을 처음부터 무작위로 다시 편성할까요?
+
+📌 문제를 낸 학생 ${fixed.size}명은 자기 모둠에 그대로 두고, 나머지 ${pool.length}명을 다섯 모둠에 고르게 나눠요.
+지금까지 학생들이 신청한 모둠은 모두 바뀌어요.`)) return;
+    sa.disabled = true;
+    const upd = spread(pool, () => 1);
+    Object.keys(D.picks).forEach(id => { if (!upd[id]) upd[id] = null; }); // 명단 밖·제안자의 남은 신청 기록 정리
+    await LAB.patch(`pick/${b}`, upd);
   };
   box.querySelectorAll('[data-unpick]').forEach(x => x.onclick = async () => { if (confirm('이 학생을 모둠에서 뺄까요?')) { await LAB.del(`pick/${b}/${x.dataset.unpick}`); } });
   box.querySelectorAll('[data-assign]').forEach(x => x.onchange = async () => {
