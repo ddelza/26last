@@ -19,7 +19,7 @@
 //   </script>
 
 (function () {
-  var KEY = 'last26Auth';
+  var KEY = /\/demo\//.test(location.pathname) ? 'last26DemoAuth' : 'last26Auth';
 
   window.getSrStudent = function () {
     try {

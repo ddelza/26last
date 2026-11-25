@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>내 삶의 문제 올리기</title>
+<link rel="stylesheet" href="../common.css?v=3">
+<style>
+.cats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.catbox { background: #fafbfd; border: 1.5px solid #edf0f5; border-radius: 12px; padding: 10px 12px; font-size: 0.8rem; line-height: 1.5; }
+.catbox b { display: block; font-size: 0.88rem; margin-bottom: 2px; }
+.catbox .ex { color: #7a6a2a; background: #fff9db; border-radius: 6px; padding: 2px 6px; margin-top: 4px; display: block; }
+@media (max-width: 520px) { .cats { grid-template-columns: 1fr; } }
+.catpick { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.catpick .chip { font-size: 0.82rem; }
+.toolbar { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.toolbar button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; font-family: inherit; color: #555; }
+.toolbar button.on { background: var(--stage); border-color: var(--stage); color: #fff; }
+.post { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); position: relative; }
+.post.mine { box-shadow: 0 0 0 2px var(--stage), 0 1px 3px rgba(0,0,0,.06); }
+.post .rank { position: absolute; top: -8px; right: 12px; background: var(--stage); color: #fff; font-weight: 900; font-size: 0.74rem; border-radius: 999px; padding: 3px 10px; }
+.post .cat { font-size: 0.74rem; font-weight: 700; color: var(--stage); }
+.post h3 { margin: 2px 0 6px; font-size: 1.02rem; line-height: 1.4; }
+.post .body { font-size: 0.88rem; line-height: 1.65; }
+.post .body .lbl { display: block; font-size: 0.72rem; font-weight: 800; color: var(--text-muted); margin-top: 6px; }
+.post .by { font-size: 0.76rem; color: var(--text-muted); margin-top: 8px; }
+.acts { display: flex; align-items: center; gap: 10px; margin: 10px 0 6px; flex-wrap: wrap; }
+.like { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 6px 14px; font-weight: 800; cursor: pointer; font-size: 0.86rem; font-family: inherit; }
+.like.on { background: #fff0f6; border-color: #fcc2d7; color: #d6336c; }
+.like:disabled { opacity: .6; cursor: default; }
+.like-names { font-size: 0.72rem; color: var(--text-muted); flex: 1; min-width: 0; }
+.cmts { display: flex; flex-direction: column; gap: 4px; font-size: 0.84rem; margin-bottom: 6px; }
+.cmts b { color: var(--stage); }
+.cmts .x { background: none; border: none; color: #adb5bd; cursor: pointer; font-size: 0.7rem; }
+.cmts .ed { color: #adb5bd; font-size: 0.7rem; }
+.cin.edit input { border-color: var(--stage); }
+.cin .ghost { background: #f1f3f5; color: #555; }
+.post .mine-edit { border: 1.5px solid var(--stage); background: #fff; color: var(--stage); border-radius: 999px; padding: 4px 12px; font-weight: 800; cursor: pointer; font-size: 0.78rem; font-family: inherit; margin-left: 6px; }
+.cin { display: flex; gap: 6px; }
+.cin input { flex: 1; padding: 8px 10px; font-size: 0.86rem; }
+.cin button { border: none; background: var(--stage); color: #fff; border-radius: 8px; padding: 0 14px; font-weight: 800; cursor: pointer; font-family: inherit; }
+.mine-list { background: #fafbfd; border: 1.5px solid #edf0f5; border-radius: 12px; padding: 10px 12px; margin-bottom: 14px; }
+.mine-list .t { font-weight: 800; font-size: 0.84rem; margin-bottom: 6px; }
+.mine-row { display: flex; align-items: center; gap: 6px; padding: 6px 4px; border-top: 1px solid #edf0f5; font-size: 0.86rem; }
+.mine-row.on { background: var(--stage-soft); border-radius: 8px; }
+.mine-row .n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--stage); color: #fff; font-size: 0.72rem; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.mine-row { flex-wrap: wrap; }
+.mine-row .tt { flex: 1 1 55%; min-width: 0; }
+.mine-row button { flex: none; border: 1.5px solid var(--border); background: #fff; border-radius: 8px; padding: 4px 8px; font-size: 0.74rem; cursor: pointer; font-family: inherit; }
+.topic-tag { font-size: 0.7rem; color: #fff; background: #212529; border-radius: 6px; padding: 0 5px; }
+.form-h { font-weight: 800; font-size: 0.95rem; margin-bottom: 4px; }
+.resort { display: block; width: 100%; border: 1.5px dashed var(--stage); background: var(--stage-soft); color: var(--stage); border-radius: 12px; padding: 9px; font-weight: 800; font-size: 0.84rem; cursor: pointer; font-family: inherit; margin-bottom: 12px; }
+.locked { text-align: center; background: #fff; border-radius: 16px; padding: 26px 16px; color: #666; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+
+  <div class="card">
+    <h2>🤔 어떤 문제를 찾으면 될까요?</h2>
+    <p class="hint" style="margin:0">"학교 숙제니까 대충"이 아니라, <b>졸업을 앞둔 내가 진짜로 신경 쓰이는 문제</b>를 찾아요.
+      아래 여섯 갈래 중 어디에서 찾아도 좋아요. 친구들이 "맞아, 나도!" 하고 공감할수록 모둠 주제로 뽑힐 가능성이 커져요.</p>
+    <div class="cats" id="cats"></div>
+  </div>
+
+  <div class="step-h"><div class="n">1</div><h2>내 삶의 문제 올리기<span class="sub">여러 개 올려도 돼요 (최대 5개) · 언제든 고칠 수 있어요</span></h2></div>
+  <div class="card" id="myForm"><div class="loading-state">불러오는 중...</div></div>
+
+  <div class="step-h"><div class="n">2</div><h2>우리 반 문제에 공감 나누기<span class="sub">❤️ 공감 + 💬 댓글이 많은 문제가 위로 올라가요</span></h2></div>
+  <div class="tip" style="margin-top:0">💬 <b>좋은 댓글</b>은 "나도 그래!"에서 한 걸음 더 나가요. 내 경험을 덧붙이거나("나는 ○○ 때 그랬어"), 궁금한 점을 묻거나("이건 1학년도 겪을까?"), 해결 아이디어를 살짝 던져 봐요.</div>
+  <div id="board"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="../session.js?v=1"></script>
+<script src="../lab.js?v=5"></script>
+<script src="../demo-seed.js?v=1"></script>
+<script>
+let ban, me, problems = {}, likes = {}, comments = {}, topics = [], sortMode = 'score', catFilter = '';
+const cin = {}; // 댓글 입력 초안 — 다시 그려도 지워지지 않게
+let frozen = null; // 공감순 화면에 고정해 둔 순서
+let cedit = null; // 고치는 중인 댓글 '문제키/댓글키'
+
+document.getElementById('cats').innerHTML = LAB.CATS.filter(c => c.id !== 'etc').map(c =>
+  `<div class="catbox"><b>${c.icon} ${c.name}</b>${c.desc}${c.ex.map(e => `<span class="ex">예) ${LAB.esc(e)}</span>`).join('')}</div>`).join('');
+
+const MAX_MINE = 5;
+let editKey = null; // null = 새 문제 쓰기, 문제키 = 그 문제 고치기
+const authorOf = id => (problems[id] && problems[id].id) || id;
+const myKeys = () => LAB.problemsBy(problems, me).sort((a, b) => (problems[a].createdAt || problems[a].updatedAt) - (problems[b].createdAt || problems[b].updatedAt));
+function myForm() {
+  const box = document.getElementById('myForm');
+  const keys = myKeys();
+  if (editKey && !problems[editKey]) editKey = null;
+  const p = editKey ? problems[editKey] : {};
+  const full = !editKey && keys.length >= MAX_MINE;
+  const list = keys.length ? `<div class="mine-list"><div class="t">📮 내가 올린 문제 ${keys.length}개 <span class="dc-muted">(최대 ${MAX_MINE}개)</span></div>${keys.map((k, i) => {
+      const q = problems[k], top = topics.includes(k);
+      return `<div class="mine-row${k === editKey ? ' on' : ''}"><span class="n">${i + 1}</span><span class="tt">${LAB.cat(q.cat).icon} ${LAB.esc(q.title)}${top ? ' <b class="topic-tag">⭐ 모둠 주제</b>' : ''}</span>
+        <button data-edit="${k}">✏️ 고치기</button>${top ? '' : `<button data-delmine="${k}" title="지우기">🗑</button>`}</div>`;
+    }).join('')}</div>` : '';
+  box.innerHTML = list + (full ? `<div class="tip">🙌 문제를 ${MAX_MINE}개 모두 올렸어요. 더 올리고 싶으면 하나를 지우고 올려요.</div>` : `
+    <div class="form-h">${editKey ? '✏️ 내 문제 고치기' : keys.length ? '➕ 문제 하나 더 올리기' : '📝 내 문제 쓰기'}</div>
+    ${editKey && topics.includes(editKey) ? '<div class="tip" style="margin-top:0">🎉 <b>이 문제가 모둠 주제로 뽑혔어요!</b> 나는 이 모둠에 고정이에요. 내용을 고치면 모둠 이름도 같이 바뀌어요.</div>' : ''}
+    <label class="field-label">어느 갈래의 문제인가요?</label>
+    <div class="catpick">${LAB.CATS.map(c => `<label class="chip"><input type="radio" name="cat" value="${c.id}" ${p.cat === c.id ? 'checked' : ''}><span>${c.icon} ${c.name}</span></label>`).join('')}</div>
+    <label class="field-label" for="fTitle">문제를 한 문장으로 <span class="dc-muted">(친구들이 제목만 보고도 알 수 있게)</span></label>
+    <input type="text" id="fTitle" maxlength="60" placeholder="예) 쉬는 시간 10분, 화장실 줄 때문에 늘 수업에 늦어요" value="${LAB.escAttr(p.title || '')}">
+    <label class="field-label" for="fStory">어떤 상황인가요? 내가 직접 겪은 일을 써 봐요</label>
+    <textarea id="fStory" rows="4" placeholder="언제, 어디서, 어떤 일이 있었는지 구체적으로. 그때 어떤 기분이었는지도 좋아요.">${LAB.esc(p.story || '')}</textarea>
+    <label class="field-label" for="fWho">왜 함께 풀어야 할 문제일까요?</label>
+    <textarea id="fWho" rows="3" placeholder="나 말고 누가 또 겪고 있을까요? 그냥 두면 어떻게 될까요?">${LAB.esc(p.who || '')}</textarea>
+    <div class="error-msg" id="fErr"></div>
+    <div class="btn-row">${editKey ? '<button class="btn ghost" id="fCancel">취소</button>' : ''}<button class="btn" id="fBtn">${editKey ? '✏️ 고친 내용 저장하기' : '📮 우리 반 게시판에 올리기'}</button></div>`) +
+    '<div class="ok-msg" id="fOk"></div>';
+  const b = document.getElementById('fBtn'); if (b) b.onclick = saveMine;
+  const cc = document.getElementById('fCancel'); if (cc) cc.onclick = () => { editKey = null; myForm(); };
+}
+document.getElementById('myForm').addEventListener('click', async e => {
+  const ed = e.target.closest('[data-edit]'), dl = e.target.closest('[data-delmine]');
+  if (ed) { editKey = ed.dataset.edit; myForm(); document.getElementById('fTitle').focus(); }
+  if (dl) {
+    const k = dl.dataset.delmine;
+    if (!confirm(`"${problems[k].title}" 문제를 지울까요?\n이 문제에 달린 공감과 댓글도 함께 사라지고 되돌릴 수 없어요.`)) return;
+    try {
+      await Promise.all([LAB.del(`problems/${ban}/${k}`), LAB.del(`likes/${ban}/${k}`), LAB.del(`comments/${ban}/${k}`)]);
+      delete problems[k]; if (editKey === k) editKey = null; myForm(); renderBoard();
+    } catch (x) { alert('지우지 못했어요. 다시 눌러 주세요.'); }
+  }
+});
+async function saveMine() {
+  const err = document.getElementById('fErr');
+  err.classList.remove('show'); document.getElementById('fOk').classList.remove('show');
+  const c = document.querySelector('input[name=cat]:checked');
+  const old = editKey ? problems[editKey] : null;
+  const rec = { id: me, name: LAB.student.name, num: LAB.student.num || 0, cat: c ? c.value : '',
+    title: document.getElementById('fTitle').value.trim(), story: document.getElementById('fStory').value.trim(), who: document.getElementById('fWho').value.trim(),
+    createdAt: (old && (old.createdAt || old.updatedAt)) || Date.now(), updatedAt: Date.now() };
+  const miss = [!rec.cat && '갈래', !rec.title && '한 문장', !rec.story && '상황'].filter(Boolean);
+  if (miss.length) { err.textContent = '아직 비어 있어요: ' + miss.join(', '); err.classList.add('show'); return; }
+  if (!editKey && myKeys().length >= MAX_MINE) { err.textContent = `문제는 ${MAX_MINE}개까지 올릴 수 있어요.`; err.classList.add('show'); return; }
+  const btn = document.getElementById('fBtn'); btn.disabled = true; btn.textContent = '저장 중...';
+  try {
+    let key = editKey;
+    if (key) await LAB.put(`problems/${ban}/${key}`, rec);
+    else key = (await LAB.post(`problems/${ban}`, rec)).name;
+    const wasNew = !editKey;
+    problems[key] = rec; editKey = null; myForm(); renderBoard();
+    const o = document.getElementById('fOk');
+    o.textContent = wasNew ? (myKeys().length === 1 ? '올렸어요! 이제 친구들 문제도 볼 수 있어요. 👇 다른 문제가 떠오르면 하나 더 올려도 돼요.' : '하나 더 올렸어요! 👇') : '고친 내용을 저장했어요.';
+    o.classList.add('show');
+  } catch (e) {
+    err.textContent = '저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'; err.classList.add('show');
+    btn.disabled = false; btn.textContent = editKey ? '✏️ 고친 내용 저장하기' : '📮 우리 반 게시판에 올리기';
+  }
+}
+
+// 공감 수로 줄 세움 (공감이 같으면 댓글 많은 글 → 먼저 올라온 글)
+const score = id => Object.keys(likes[id] || {}).length * 10000 + Math.min(Object.keys(comments[id] || {}).length, 9999);
+function captureInputs() {
+  document.querySelectorAll('.cin input').forEach(el => { cin[el.dataset.k] = el.value; });
+  const a = document.activeElement;
+  return a && a.dataset && a.dataset.k ? { k: a.dataset.k, s: a.selectionStart, e: a.selectionEnd } : null;
+}
+function renderBoard() {
+  const root = document.getElementById('board');
+  if (!myKeys().length && !LAB.student.isTeacher) {
+    root.innerHTML = '<div class="locked">🔒 <b>먼저 내 문제를 올려야</b> 친구들 문제를 볼 수 있어요.<br><span class="dc-muted">다른 사람 생각에 휩쓸리기 전에, 내 생각부터!</span></div>'; return;
+  }
+  const focus = captureInputs();
+  const nameOf = {}; Object.values(problems).forEach(p => nameOf[p.id] = p.name); Object.values(comments).forEach(cs => Object.values(cs || {}).forEach(x => nameOf[x.id] = nameOf[x.id] || x.name));
+  const born = id => problems[id].createdAt || problems[id].updatedAt;
+  const ranked = Object.keys(problems).sort((a, b) => score(b) - score(a) || (born(a) - born(b)));
+  // 읽는 동안 순서가 바뀌지 않게: 공감순은 처음 정렬한 순서를 그대로 쓰고(점수 숫자만 바뀜),
+  // 새로 올라온 글은 맨 뒤에 붙인다. 순위가 달라지면 안내 띠의 "다시 정렬"을 눌렀을 때만 다시 줄 세운다.
+  if (!frozen) frozen = ranked.slice();
+  const order = frozen.filter(id => problems[id]).concat(ranked.filter(id => !frozen.includes(id)));
+  const reordered = sortMode === 'score' && order.join() !== ranked.join();
+  const rankOf = {}; order.forEach((id, i) => rankOf[id] = i + 1);
+  const anchor = boardAnchor();
+  let ids = sortMode === 'score' ? order : Object.keys(problems).sort((a, b) => born(b) - born(a));
+  if (catFilter) ids = ids.filter(id => problems[id].cat === catFilter);
+  const usedCats = [...new Set(Object.values(problems).map(p => p.cat))];
+  let h = `<div class="toolbar"><button data-sort="score" class="${sortMode === 'score' ? 'on' : ''}">🔥 공감 많은 순</button><button data-sort="new" class="${sortMode === 'new' ? 'on' : ''}">🕒 최신 순</button></div>
+    <div class="toolbar"><button data-cat="" class="${!catFilter ? 'on' : ''}">전체 ${Object.keys(problems).length}</button>${LAB.CATS.filter(c => usedCats.includes(c.id)).map(c =>
+      `<button data-cat="${c.id}" class="${catFilter === c.id ? 'on' : ''}">${c.icon} ${Object.values(problems).filter(p => p.cat === c.id).length}</button>`).join('')}</div>`;
+  if (reordered) h += '<button class="resort" data-resort="1">🔄 그새 공감 순위가 바뀌었어요 · 눌러서 다시 줄 세우기</button>';
+  if (!ids.length) h += '<div class="empty-state">아직 올라온 문제가 없어요.</div>';
+  h += ids.map(id => {
+    const p = problems[id], c = LAB.cat(p.cat), lk = likes[id] || {}, cm = comments[id] || {};
+    const liked = !!lk[me], mine = authorOf(id) === me, nL = Object.keys(lk).length;
+    const likeNames = Object.keys(lk).map(k => nameOf[k]).filter(Boolean);
+    const cms = Object.keys(cm).map(k => Object.assign({ k }, cm[k])).sort((a, b) => a.ts - b.ts);
+    return `<div class="post${mine ? ' mine' : ''}" data-pid="${id}">
+      ${rankOf[id] <= 5 && Object.keys(likes[id] || {}).length > 0 ? `<div class="rank">공감 ${rankOf[id]}위</div>` : ''}
+      ${topics.includes(id) ? '<div class="rank" style="right:auto;left:12px;background:#212529">⭐ 모둠 주제</div>' : ''}
+      <div class="cat">${c.icon} ${c.name}</div>
+      <h3>${LAB.esc(p.title)}</h3>
+      <div class="body"><span class="lbl">어떤 상황?</span>${LAB.nl2br(p.story)}${p.who ? `<span class="lbl">왜 함께 풀어야 할까?</span>${LAB.nl2br(p.who)}` : ''}</div>
+      <div class="by">${LAB.esc(p.name)}${mine ? ' (나)' : ''} · ${LAB.fmtTime(p.updatedAt)}${mine ? `<button class="mine-edit" data-editpost="${id}">✏️ 내 글 고치기</button>` : ''}</div>
+      <div class="acts"><button class="like${liked ? ' on' : ''}" data-like="${id}" ${mine ? 'disabled title="내 글에는 누를 수 없어요"' : ''}>${liked ? '❤️' : '🤍'} 공감 ${nL}</button>
+        <span class="like-names">${likeNames.length ? LAB.esc(likeNames.join(', ')) : ''}</span><span class="dc-muted">💬 ${cms.length}</span></div>
+      <div class="cmts">${cms.map(x => { const ck = id + '/' + x.k;
+        if (cedit === ck) return `<div class="cin edit"><input data-k="e:${ck}" maxlength="200" value="${LAB.escAttr(cin['e:' + ck] !== undefined ? cin['e:' + ck] : x.text)}"><button data-csave="${ck}">저장</button><button class="ghost" data-ccancel="1">취소</button></div>`;
+        return `<div><b>${LAB.esc(x.name)}</b> ${LAB.esc(x.text)}${x.edited ? ' <span class="ed">(수정됨)</span>' : ''} ${x.id === me ? `<button class="x" data-cedit="${ck}">고치기</button>` : ''}${x.id === me || LAB.student.isTeacher ? `<button class="x" data-del="${ck}">지우기</button>` : ''}</div>`; }).join('')}</div>
+      <div class="cin"><input data-k="${id}" placeholder="댓글로 공감·경험·질문 남기기" maxlength="200" value="${LAB.escAttr(cin[id] || '')}"><button data-cm="${id}">등록</button></div>
+    </div>`;
+  }).join('');
+  root.innerHTML = h;
+  if (anchor) { const el = root.querySelector(`.post[data-pid="${CSS.escape(anchor.id)}"]`); if (el) window.scrollBy(0, el.getBoundingClientRect().top - anchor.top); }
+  if (focus) { const el = root.querySelector(`.cin input[data-k="${focus.k}"]`); if (el) { el.focus({ preventScroll: true }); try { el.setSelectionRange(focus.s, focus.e); } catch (e) {} } }
+}
+// 다시 그리기 전, 화면 위쪽에 보이던 글과 그 위치를 기억 → 다시 그린 뒤 같은 글이 같은 자리에 오도록 스크롤을 맞춘다
+function boardAnchor() {
+  const posts = document.querySelectorAll('#board .post[data-pid]');
+  for (const el of posts) { const r = el.getBoundingClientRect(); if (r.bottom > 60) return { id: el.dataset.pid, top: r.top }; }
+  return null;
+}
+async function load() {
+  const [p, l, c, pk] = await Promise.all([LAB.get(`problems/${ban}`), LAB.get(`likes/${ban}`), LAB.get(`comments/${ban}`), LAB.get(`pick/${ban}/_config/topics`)]);
+  problems = p || {}; likes = l || {}; comments = c || {}; topics = Object.values(pk || {});
+}
+document.getElementById('board').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.sort) { sortMode = b.dataset.sort; frozen = null; return renderBoard(); }
+  if (b.dataset.resort) { frozen = null; renderBoard(); document.getElementById('board').scrollIntoView({ behavior: 'smooth' }); return; }
+  if (b.dataset.cat !== undefined) { catFilter = b.dataset.cat; return renderBoard(); }
+  if (b.dataset.like) {
+    const id = b.dataset.like, path = `likes/${ban}/${id}/${me}`; b.disabled = true;
+    try { if (likes[id] && likes[id][me]) { await LAB.del(path); delete likes[id][me]; } else { await LAB.put(path, true); (likes[id] = likes[id] || {})[me] = true; } } catch (x) { alert('저장하지 못했어요. 다시 눌러 주세요.'); }
+    return renderBoard();
+  }
+  if (b.dataset.cm) {
+    const id = b.dataset.cm, inp = b.parentNode.querySelector('input'), text = inp.value.trim();
+    if (!text) return inp.focus();
+    b.disabled = true;
+    try { const r = await LAB.post(`comments/${ban}/${id}`, { id: me, name: LAB.student.name, text, ts: Date.now() });
+      (comments[id] = comments[id] || {})[r.name] = { id: me, name: LAB.student.name, text, ts: Date.now() }; cin[id] = ''; inp.value = '';
+    } catch (x) { alert('댓글을 저장하지 못했어요. 다시 눌러 주세요.'); }
+    return renderBoard();
+  }
+  if (b.dataset.editpost) {
+    editKey = b.dataset.editpost; myForm();
+    document.getElementById('myForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => { const t = document.getElementById('fTitle'); if (t) t.focus({ preventScroll: true }); }, 400);
+    return;
+  }
+  if (b.dataset.cedit) { cedit = b.dataset.cedit; delete cin['e:' + cedit]; renderBoard(); const el = document.querySelector(`.cin input[data-k="e:${cedit}"]`); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } return; }
+  if (b.dataset.ccancel) { delete cin['e:' + cedit]; cedit = null; return renderBoard(); }
+  if (b.dataset.csave) {
+    const ck = b.dataset.csave, [id, k] = ck.split('/'), inp = b.parentNode.querySelector('input'), text = inp.value.trim();
+    if (!text) return inp.focus();
+    b.disabled = true;
+    try {
+      const at = Date.now();
+      await LAB.patch(`comments/${ban}/${ck}`, { text, edited: at });
+      if (comments[id] && comments[id][k]) Object.assign(comments[id][k], { text, edited: at });
+      delete cin['e:' + ck]; cedit = null;
+    } catch (x) { alert('저장하지 못했어요. 다시 눌러 주세요.'); b.disabled = false; return; }
+    return renderBoard();
+  }
+  if (b.dataset.del) {
+    if (!confirm('이 댓글을 지울까요?')) return;
+    await LAB.del(`comments/${ban}/${b.dataset.del}`); const [id, k] = b.dataset.del.split('/'); if (comments[id]) delete comments[id][k];
+    return renderBoard();
+  }
+});
+document.getElementById('board').addEventListener('keydown', e => {
+  // 한글 조합 중 Enter는 무시하고, 조합이 끝난 뒤(마지막 글자 확정 후) 등록한다
+  if (e.key === 'Enter' && e.target.dataset.k && !e.isComposing && e.keyCode !== 229) {
+    e.preventDefault(); const b = e.target.parentNode.querySelector('button'); setTimeout(() => b.click(), 30);
+  }
+});
+document.getElementById('board').addEventListener('input', e => { if (e.target.dataset.k) cin[e.target.dataset.k] = e.target.value; });
+
+LAB.start({ stage: 1, title: '내 삶의 문제 올리고 공감 나누기', subtitle: '우리 반 친구들이 가장 많이 공감한 문제들이 모둠 주제 후보가 돼요.' }).then(async () => {
+  ban = LAB.myBan(); me = LAB.student.id;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban));
+  await load(); myForm(); renderBoard();
+  // 8초마다 새로 불러오기 (한글 입력 중이면 이번 차례는 건너뜀)
+  let composing = false;
+  document.addEventListener('compositionstart', () => composing = true);
+  document.addEventListener('compositionend', () => composing = false);
+  setInterval(async () => { if (document.hidden || composing) return; try { await load(); renderBoard(); } catch (e) {} }, 8000);
+});
+</script>
+</body>
+</html>

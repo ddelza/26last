@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>보고서 쓰기</title>
+<link rel="stylesheet" href="../common.css?v=3">
+<style>
+.sec { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.sec h3 { margin: 0 0 4px; font-size: 1rem; }
+.sec .guide { font-size: 0.8rem; color: #555; background: var(--stage-soft); border-radius: 10px; padding: 8px 12px; margin-bottom: 8px; line-height: 1.6; }
+.sec .guide .ex { display: block; color: #868e96; margin-top: 4px; }
+.sec .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.sec .row .btn { margin: 0; }
+.sec .meta { font-size: 0.74rem; color: var(--text-muted); flex: 1; }
+.sec .meta.dirty { color: #e8590c; font-weight: 700; }
+.sec .notice { display: none; background: #fff4e6; border: 1.5px solid #ffc078; color: #a85d00; border-radius: 10px; padding: 8px 12px; font-size: 0.8rem; margin-bottom: 8px; }
+.sec .notice.show { display: block; }
+.sec .notice button { border: none; background: #fd7e14; color: #fff; border-radius: 6px; padding: 3px 10px; cursor: pointer; font-weight: 700; margin-left: 4px; font-family: inherit; }
+.cnt { font-size: 0.7rem; color: var(--text-muted); }
+.ref { font-size: 0.84rem; }
+.check li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="../session.js?v=1"></script>
+<script src="../lab.js?v=5"></script>
+<script src="../demo-seed.js?v=1"></script>
+<script>
+const SECS = [
+  { id: 'problem', icon: '🎯', title: '우리가 해결하려는 문제',
+    guide: '누가, 언제, 어디서, 어떤 어려움을 겪고 있나요? 왜 그냥 두면 안 되는 문제인가요?', ex: '예) 우리 학교 학생들은 쉬는 시간 10분 동안 화장실을 이용하기 어렵다. 층마다 칸이 3개뿐이라...' },
+  { id: 'method', icon: '❓', title: '우리가 던진 질문과 그 이유',
+    guide: '설문에서 무엇을 물었나요? 실태 파악(①심각성·②원인)과 문제 해결(③선호·의견·④아이디어) 중 왜 이 질문을 골랐나요?', ex: '2단계 ④에 쓴 "고른 이유"를 다듬어 써도 돼요.' },
+  { id: 'data', icon: '📊', title: '설문 결과 — 숫자로 말하기',
+    guide: '느낌이 아니라 <b>숫자</b>로 써요. "응답자 ○명 중 ○명(○%)이 ~라고 답했다." 가장 많은 답, 학년별 차이, 눈에 띄는 주관식 답을 정리해요.', ex: '예) 전교생 286명 중 171명(59.8%)이 "쉬는 시간에 화장실을 못 가서 수업에 늦은 적이 있다"고 답했다. 특히 1학년은 72%로...' },
+  { id: 'insight', icon: '🔎', title: '실태 파악 — 결과가 말해 주는 것',
+    guide: '결과로 알게 된 우리 문제의 <b>진짜 모습</b>은? 예상과 달랐던 점은? 원인은 무엇이라고 생각하나요? 설문만으로는 알 수 없는 것(한계)도 솔직하게 써요.', ex: '예) 문제는 칸 수보다 "모두 같은 시간에 몰린다"는 점이었다. 다만 이번 설문은 3층 학생 응답이 적어...' },
+  { id: 'solution', icon: '💡', title: '실현 가능한 해결 방안',
+    guide: '<b>누가 · 무엇을 · 언제 · 어떻게</b> 할지 구체적으로. 필요한 것(돈·허락·도움)과, 이 방법이 <b>정말 해볼 수 있는 이유</b>, 그리고 <b>설문 결과와 어떻게 연결되는지</b>를 꼭 써요.', ex: '예) [우리 힘으로] 층별 화장실 혼잡 시간표를 만들어 붙인다 / [학교 도움으로] 학생회를 통해 ○○을 건의한다 — 설문에서 63%가 "덜 붐비는 시간을 알면 옮기겠다"고 답했기 때문이다.' },
+  { id: 'spread', icon: '📣', title: '공동체에 퍼뜨리기',
+    guide: '이 해결 방안을 누구에게, 어떻게 알릴까요? 포스터는 어디에 붙이고, 사람들에게 어떤 행동을 부탁할까요? (학생회·선생님·학부모·지역 기관 등)<br>🔁 <b>[선택] ⑤ 효과 확인</b> — 해결 방안을 실제로 해 볼 수 있다면, 해 본 뒤 같은 질문을 다시 물어 전과 후 숫자를 비교해 봐요.', ex: '예) 포스터를 층별 화장실 앞과 급식실 입구에 붙이고, 학생회 회의에 결과표를 들고 가 건의한다.' },
+];
+let ban, G, me, rep = {}, baseAt = {}, baseText = {}, fin = null, resps = null;
+
+function render() {
+  const o = fin && fin.out;
+  document.getElementById('main').innerHTML = LAB.groupBannerHtml(G, ban) + `
+    <div class="card">
+      <h2>📝 보고서는 이렇게 써요</h2>
+      <p class="hint" style="margin:0">모둠원 모두 함께 쓰는 보고서예요. <b>칸마다 따로 저장</b>되니까 칸을 나눠 맡아 동시에 써도 돼요. 같은 칸을 둘이 고치면 덮어쓰기 전에 알려 줘요.</p>
+    </div>
+    ${o && o.q ? `<details class="card ref" ${resps ? 'open' : ''}><summary><b>📊 참고: 우리 질문과 설문 결과</b></summary><div style="margin-top:10px">${LAB.qViewHtml(o.q, true)}
+      <div style="margin-top:10px">${resps ? LAB.resultHtml(o.q, resps, LAB.qkey(ban, G.id)) : '<div class="dc-muted">결과가 공개되면 여기에 보여요.</div>'}</div>
+      <a href="s3-result.html" class="dc-muted">→ 결과 크게 보기 · 학년별 · 다른 모둠 결과</a></div></details>` : ''}
+    ${SECS.map((s, i) => `<div class="sec" data-sec="${s.id}">
+      <h3>${i + 1}. ${s.icon} ${s.title}</h3>
+      <div class="guide">${s.guide}<span class="ex">${LAB.esc(s.ex)}</span></div>
+      <div class="notice" id="nt_${s.id}"></div>
+      <textarea id="ta_${s.id}" rows="5">${LAB.esc((rep[s.id] && rep[s.id].text) || '')}</textarea>
+      <div class="row"><span class="meta" id="meta_${s.id}"></span><span class="cnt" id="cnt_${s.id}"></span><button class="btn small" data-save="${s.id}">💾 이 칸 저장</button></div>
+    </div>`).join('')}
+    <div class="sec"><h3>🙋 내가 맡은 일 <span class="dc-muted">(개인 — 나만 써요)</span></h3>
+      <div class="guide">이 프로젝트에서 내가 맡은 일과 기여한 점을 써요. 모둠원마다 따로 저장돼요.</div>
+      <textarea id="ta_contrib" rows="3"></textarea>
+      <div class="row"><span class="meta" id="meta_contrib"></span><button class="btn small" id="saveContrib">💾 저장</button></div>
+      <div id="contribs" style="margin-top:10px;font-size:0.82rem"></div></div>
+    <div class="card check"><h2>✅ 제출 전 체크</h2><ul>
+      <li>설문 결과를 <b>숫자(명, %)</b>로 썼나요?</li>
+      <li>해결 방안이 <b>설문 결과에서 나온 것</b>인가요? (근거가 연결되나요?)</li>
+      <li>해결 방안이 <b>우리가 정말 해볼 수 있는</b> 것인가요? 누가·언제·어떻게가 있나요?</li>
+      <li>설문의 <b>한계</b>도 솔직하게 썼나요?</li></ul>
+      <button class="btn secondary" id="copyAll">📋 보고서 전체 복사하기 (한글·구글 문서에 붙여 넣기)</button>
+      <a class="btn" href="s4-poster.html">다음: 캔바 포스터 만들기 →</a></div>`;
+  SECS.forEach(s => { baseText[s.id] = (rep[s.id] && rep[s.id].text) || ''; baseAt[s.id] = (rep[s.id] && rep[s.id].at) || 0; meta(s.id); });
+  document.querySelectorAll('[data-save]').forEach(b => b.onclick = () => saveSec(b.dataset.save));
+  document.querySelectorAll('textarea[id^=ta_]').forEach(t => t.addEventListener('input', () => meta(t.id.slice(3))));
+  document.getElementById('saveContrib').onclick = saveContrib;
+  document.getElementById('copyAll').onclick = copyAll;
+  loadContribs(true);
+}
+function meta(id) {
+  if (id === 'contrib') return;
+  const el = document.getElementById('meta_' + id), ta = document.getElementById('ta_' + id), r = rep[id];
+  const dirty = ta.value !== baseText[id];
+  el.className = 'meta' + (dirty ? ' dirty' : '');
+  el.textContent = dirty ? '✏️ 저장하지 않은 내용이 있어요' : r ? `💾 ${r.byName} · ${LAB.fmtTime(r.at)}` : '아직 비어 있어요';
+  document.getElementById('cnt_' + id).textContent = ta.value.length + '자';
+}
+async function saveSec(id) {
+  const ta = document.getElementById('ta_' + id), text = ta.value.trim();
+  try {
+    const cur = await LAB.get(`report/${ban}/${G.id}/${id}`);
+    if (cur && cur.at > baseAt[id] && cur.by !== me && !confirm(`그 사이 ${cur.byName}이(가) 이 칸을 고쳐 저장했어요.\n\n[${cur.byName}의 내용]\n${cur.text.slice(0, 300)}\n\n내 내용으로 덮어쓸까요? (취소하면 "최신으로 불러오기"로 확인할 수 있어요)`)) { showNotice(id, cur); return; }
+    const rec = { text, by: me, byName: LAB.student.name, at: Date.now() };
+    await LAB.put(`report/${ban}/${G.id}/${id}`, rec);
+    rep[id] = rec; baseText[id] = ta.value; baseAt[id] = rec.at;
+    document.getElementById('nt_' + id).classList.remove('show'); meta(id);
+  } catch (e) { alert('저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'); }
+}
+function showNotice(id, srv) {
+  const nt = document.getElementById('nt_' + id);
+  nt.innerHTML = `✏️ <b>${LAB.esc(srv.byName)}</b>이(가) 이 칸을 고쳤어요 (${LAB.fmtTime(srv.at)}) <button data-reload="${id}">최신으로 불러오기</button>`;
+  nt.classList.add('show'); rep['srv_' + id] = srv;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-reload]'); if (!b) return;
+  const id = b.dataset.reload, srv = rep['srv_' + id], ta = document.getElementById('ta_' + id);
+  if (ta.value !== baseText[id] && !confirm('내가 저장하지 않은 내용이 사라져요. 불러올까요?')) return;
+  rep[id] = srv; ta.value = srv.text; baseText[id] = srv.text; baseAt[id] = srv.at;
+  document.getElementById('nt_' + id).classList.remove('show'); meta(id);
+});
+async function poll() {
+  const r = (await LAB.get(`report/${ban}/${G.id}`)) || {};
+  SECS.forEach(s => {
+    const srv = r[s.id]; if (!srv || srv.at <= baseAt[s.id]) return;
+    const ta = document.getElementById('ta_' + s.id);
+    // 내가 손대지 않은 칸은 조용히 최신으로, 쓰는 중인 칸은 알림만
+    if (ta.value === baseText[s.id] && document.activeElement !== ta) { rep[s.id] = srv; ta.value = srv.text; baseText[s.id] = srv.text; baseAt[s.id] = srv.at; meta(s.id); }
+    else if (srv.by !== me) showNotice(s.id, srv);
+  });
+  loadContribs(false);
+}
+let contribBase = null;
+async function loadContribs(first) {
+  const c = (await LAB.get(`contrib/${ban}/${G.id}`)) || {};
+  const ta = document.getElementById('ta_contrib');
+  if (first) { ta.value = (c[me] && c[me].text) || ''; contribBase = ta.value; document.getElementById('meta_contrib').textContent = c[me] ? '💾 ' + LAB.fmtTime(c[me].at) : ''; }
+  document.getElementById('contribs').innerHTML = G.members.filter(m => m.id !== me).map(m =>
+    `<div style="margin:4px 0"><b>${LAB.esc(m.name)}</b> ${c[m.id] ? LAB.esc(c[m.id].text) : '<span class="dc-muted">아직 안 씀</span>'}</div>`).join('');
+}
+async function saveContrib() {
+  const text = document.getElementById('ta_contrib').value.trim();
+  try { await LAB.put(`contrib/${ban}/${G.id}/${me}`, { text, name: LAB.student.name, at: Date.now() }); document.getElementById('meta_contrib').textContent = '💾 저장됨 ' + LAB.fmtTime(Date.now()); }
+  catch (e) { alert('저장하지 못했어요. 다시 눌러 주세요.'); }
+}
+function copyAll() {
+  const lines = [`[${LAB.NAME}] ${LAB.banLabel(ban)} ${G.no}모둠 보고서`, `문제: ${G.title}`, `모둠원: ${G.members.map(m => m.name).join(', ')}`, ''];
+  SECS.forEach((s, i) => { lines.push(`${i + 1}. ${s.title}`, document.getElementById('ta_' + s.id).value.trim() || '(비어 있음)', ''); });
+  const t = lines.join('\n');
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => alert('복사했어요! 한글이나 구글 문서에 붙여 넣으세요.'), () => prompt('아래 내용을 복사하세요', t));
+}
+
+LAB.start({ stage: 4, title: '보고서 쓰기', subtitle: '설문 데이터로 실태를 밝히고, 우리가 해볼 수 있는 해결 방안을 제시해요.' }).then(async () => {
+  me = LAB.student.id;
+  const r = await LAB.resolveMyGroup(); ban = r.ban; G = r.group;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban, r.data, G));
+  if (!G) { document.getElementById('main').innerHTML = LAB.noGroupHtml(); return; }
+  const [rp, f, sc] = await Promise.all([LAB.get(`report/${ban}/${G.id}`), LAB.get(`final/${ban}/${G.id}`), LAB.get('survey/_config')]);
+  rep = rp || {}; fin = f;
+  if ((sc && sc.results) || LAB.student.isTeacher) resps = (await LAB.get('resp')) || {};
+  render();
+  setInterval(() => { if (!document.hidden) poll().catch(() => {}); }, 15000);
+});
+</script>
+</body>
+</html>

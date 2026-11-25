@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>질문 다듬기</title>
+<link rel="stylesheet" href="../common.css?v=3">
+<style>
+.types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.type { border-radius: 14px; padding: 12px 14px; font-size: 0.84rem; line-height: 1.6; }
+.type.survey { background: #e7f5ff; } .type.solution { background: #fff9db; }
+.type h3 { margin: 0 0 4px; font-size: 0.98rem; }
+.type .ex { font-size: 0.76rem; color: #666; margin-top: 2px; }
+.type .sub { background: rgba(255,255,255,.7); border-radius: 10px; padding: 6px 10px; margin-top: 6px; }
+.type .sub b { color: #212529; }
+.type.check { background: #f3f0ff; margin-top: 10px; }
+@media (max-width: 560px) { .types { grid-template-columns: 1fr; } }
+.qbox { border: 1.5px solid #e9ecef; border-radius: 14px; padding: 12px 14px; margin-top: 12px; }
+.qbox > .h { font-weight: 900; margin-bottom: 6px; }
+.qbox.survey > .h { color: #1971c2; } .qbox.solution > .h { color: #e67700; }
+.member { border-top: 1px dashed #dee2e6; padding: 10px 0; }
+.member:first-child { border-top: none; }
+.member .nm { font-weight: 800; font-size: 0.86rem; margin-bottom: 6px; }
+.member .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.member .two > div > .lab { font-size: 0.72rem; font-weight: 800; margin-bottom: 2px; }
+.member .take { margin-top: 4px; border: none; background: #f1f3f5; border-radius: 8px; padding: 4px 10px; font-size: 0.74rem; cursor: pointer; font-family: inherit; }
+@media (max-width: 560px) { .member .two { grid-template-columns: 1fr; } }
+.notice { background: #fff4e6; border: 1.5px solid #ffc078; color: #a85d00; border-radius: 10px; padding: 8px 12px; font-size: 0.82rem; margin-bottom: 8px; display: none; }
+.notice.show { display: block; }
+.notice button { border: none; background: #fd7e14; color: #fff; border-radius: 6px; padding: 3px 10px; cursor: pointer; font-weight: 700; margin-left: 6px; font-family: inherit; }
+.last { font-size: 0.74rem; color: var(--text-muted); margin-top: 6px; }
+.which { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.which .chip { align-items: flex-start; flex-direction: column; }
+.which .chip small { font-weight: 400; color: #555; }
+.which .chip.disabled { opacity: .4; pointer-events: none; }
+.shows { display: flex; flex-direction: column; gap: 6px; }
+.shows .chip small { display: block; font-weight: 400; color: #666; font-size: 0.76rem; }
+.preview { background: #f1f3f5; border-radius: 16px; padding: 14px; margin-top: 12px; }
+.preview .pv-h { font-size: 0.74rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px; }
+.sv-card { background: #fff; border-radius: 14px; padding: 16px; }
+.sv-prob { background: #f8f9fa; border-radius: 10px; padding: 8px 12px; font-size: 0.82rem; margin-bottom: 10px; }
+.sv-prob b { display: block; }
+.sv-img { max-width: 100%; border-radius: 10px; margin: 6px 0; display: block; }
+.sv-note { font-size: 0.84rem; color: #444; margin-bottom: 10px; }
+.sent { background: var(--ok-soft); border: 2px solid #8ce99a; border-radius: 14px; padding: 14px; text-align: center; }
+.sent .big { font-size: 2rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="../session.js?v=1"></script>
+<script src="../lab.js?v=5"></script>
+<script src="../demo-seed.js?v=1"></script>
+<script>
+let ban, G, me, members = [], drafts = {}, fin = {}, surveyCfg = {}, imgData = null, imgLoaded = false;
+const eds = {}; // 편집기: my_survey, my_solution, fin_survey, fin_solution
+const base = {}; // 최종 질문을 불러온 시점의 서버 기록(at) — 다른 친구가 고쳤는지 확인용
+const T = LAB.QTYPES;
+
+function surveyPreviewHtml(o, img) {
+  const q = o.q || {};
+  let h = '<div class="sv-card">';
+  if (o.show === 'problem' || o.show === 'full') h += `<div class="sv-prob">📌 ${LAB.esc(LAB.banLabel(ban))} ${G.no}모둠이 고민하는 문제<b>${LAB.esc(G.title)}</b></div>`;
+  if (o.show === 'full') {
+    if (img) h += `<img class="sv-img" src="${img}" alt="">`;
+    if (o.note) h += `<div class="sv-note">${LAB.nl2br(o.note)}</div>`;
+  }
+  return h + LAB.qViewHtml(q) + '</div>';
+}
+
+function render() {
+  const c = LAB.cat(G.cat);
+  document.getElementById('main').innerHTML = LAB.groupBannerHtml(G, ban) + `
+  <div class="card">
+    <h2>🎯 이번 단계에서 할 일</h2>
+    <p class="hint" style="margin:0 0 10px">우리 모둠 문제를 풀려면 <b>전교생에게 무엇을 물어봐야 할까요?</b> 질문은 크게 두 종류, 자세히는 네 가지예요.</p>
+    <div class="types">${['survey', 'solution'].map(k => `<div class="type ${k}"><h3>${T[k].icon} ${T[k].name}</h3>${T[k].desc}
+      ${T[k].subs.map(id => { const f = LAB.FOCUS[id]; return `<div class="sub"><b>${f.no} ${f.name}</b> ${f.ask}<div class="ex">${f.ex}</div></div>`; }).join('')}</div>`).join('')}
+    </div>
+    <div class="type check"><h3>🔁 [선택] ${LAB.CHECK.no} ${LAB.CHECK.name}</h3>${LAB.CHECK.ask}. 4단계에서 해결 방안을 실제로 해 볼 수 있다면, 우리 설문 질문을 <b>그대로 다시</b> 물어 전과 후를 비교해 봐요. 숫자가 달라졌다면 해결 방안이 효과가 있었다는 증거예요!</div>
+    <div class="tip"><b>✅ 좋은 설문 질문 체크리스트</b><ul>
+      <li><b>한 번에 하나만</b> 물어요. ("잠이 부족하고 피곤한가요?" ✗ → 두 개로 나누기)</li>
+      <li><b>답을 정해 놓고 묻지 않아요.</b> ("폰 사용 규칙이 꼭 필요하죠?" ✗)</li>
+      <li>객관식 보기는 <b>겹치지 않고, 빠지는 사람이 없게</b> 만들어요. (예: 1시간 미만 / 1~2시간 / 2~3시간 / 3시간 이상)</li>
+      <li><b>1학년 후배도 바로 이해할</b> 쉬운 말로 써요.</li>
+      <li>결과를 받았을 때 <b>그 숫자로 무엇을 말할 수 있을지</b> 미리 떠올려 봐요.</li>
+    </ul></div>
+    <div class="dc-muted">진행 순서: ① 각자 2개 만들기 → ② 모둠원 질문 모아 보기 → ③ 토의해서 모둠 최종 질문 2개 → ④ 그중 딱 하나 골라 설문에 내보내기</div>
+  </div>
+
+  <div class="step-h"><div class="n">1</div><h2>내가 만드는 질문 2개<span class="sub">혼자 먼저 생각해요 · 모둠원에게 보여요</span></h2></div>
+  <div class="card">
+    <div class="qbox survey"><div class="h">${T.survey.icon} 내 ${T.survey.name}</div><div id="ed_my_survey"></div></div>
+    <div class="qbox solution"><div class="h">${T.solution.icon} 내 ${T.solution.name}</div><div id="ed_my_solution"></div></div>
+    <div class="error-msg" id="myErr"></div><div class="ok-msg" id="myOk"></div>
+    <button class="btn" id="mySave">💾 내 질문 저장하기</button>
+  </div>
+
+  <div class="step-h"><div class="n">2</div><h2>모둠원 질문 모아 보기<span class="sub">자동으로 새로 고쳐져요 · 좋은 건 ③으로 가져가요</span></h2></div>
+  <div class="card" id="memberList"></div>
+
+  <div class="step-h"><div class="n">3</div><h2>모둠 최종 질문 완성하기<span class="sub">토의하며 다듬어요 · 모둠원 누구나 고칠 수 있어요</span></h2></div>
+  <div class="card">
+    <p class="hint">②의 질문을 가져와 고치거나 합쳐도 되고, 새로 써도 돼요. <b>한 사람이 대표로 고치고 저장</b>하면 다툼 없이 깔끔해요.</p>
+    ${['survey', 'solution'].map(k => `<div class="qbox ${k}"><div class="h">${T[k].icon} 모둠 최종 ${T[k].name}</div>
+      <div class="notice" id="nt_${k}"></div><div id="ed_fin_${k}"></div>
+      <div class="error-msg" id="finErr_${k}"></div><div class="ok-msg" id="finOk_${k}"></div>
+      <button class="btn small" style="margin-top:10px" data-finsave="${k}">💾 모둠 최종 ${T[k].short} 질문 저장</button>
+      <div class="last" id="last_${k}"></div></div>`).join('')}
+  </div>
+
+  <div class="step-h"><div class="n">4</div><h2>딱 하나 골라 설문에 내보내기<span class="sub">모둠이 함께 신중하게 결정해요</span></h2></div>
+  <div class="card" id="outBox"></div>`;
+
+  eds.my_survey = LAB.qEditor(document.getElementById('ed_my_survey'), drafts[me] && drafts[me].survey, { subs: T.survey.subs });
+  eds.my_solution = LAB.qEditor(document.getElementById('ed_my_solution'), drafts[me] && drafts[me].solution, { subs: T.solution.subs });
+  ['survey', 'solution'].forEach(k => {
+    eds['fin_' + k] = LAB.qEditor(document.getElementById('ed_fin_' + k), fin[k], { subs: T[k].subs, onInput: renderOutPreview });
+    base[k] = fin[k] ? fin[k].at : 0; lastLine(k);
+  });
+  document.getElementById('mySave').onclick = saveMine;
+  document.querySelectorAll('[data-finsave]').forEach(b => b.onclick = () => saveFinal(b.dataset.finsave));
+  renderMembers(); renderOut();
+}
+function lastLine(k) {
+  const f = fin[k], el = document.getElementById('last_' + k);
+  if (el) el.textContent = f ? `💾 마지막 저장: ${f.byName} · ${LAB.fmtTime(f.at)}` : '아직 저장 전이에요.';
+}
+
+function renderMembers() {
+  document.getElementById('memberList').innerHTML = members.map(m => {
+    const d = drafts[m.id] || {};
+    return `<div class="member"><div class="nm">${m.proposer ? '📌 ' : ''}${LAB.esc(m.name)}${m.id === me ? ' (나)' : ''} ${d.updatedAt ? `<span class="dc-muted">${LAB.fmtTime(d.updatedAt)}</span>` : '<span class="dc-muted">아직 안 씀</span>'}</div>
+      <div class="two">${['survey', 'solution'].map(k => `<div><div class="lab">${T[k].icon} ${T[k].short}</div>${LAB.qViewHtml(d[k], true)}
+        ${d[k] && d[k].q ? `<button class="take" data-take="${m.id}|${k}">⬇ ③ 최종 ${T[k].short} 칸으로 가져오기</button>` : ''}</div>`).join('')}</div></div>`;
+  }).join('');
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-take]'); if (!b) return;
+  const [id, k] = b.dataset.take.split('|');
+  const cur = eds['fin_' + k].get();
+  if (cur.q && !confirm(`모둠 최종 ${T[k].short} 질문 칸을 ${members.find(m => m.id === id).name}의 질문으로 바꿀까요?\n(지금 칸에 쓴 내용은 사라져요. 저장 버튼을 눌러야 모둠에 저장돼요)`)) return;
+  eds['fin_' + k].set(drafts[id][k]);
+  document.getElementById('ed_fin_' + k).scrollIntoView({ behavior: 'smooth', block: 'center' });
+  renderOutPreview();
+});
+
+async function saveMine() {
+  const err = document.getElementById('myErr'), ok = document.getElementById('myOk'); err.classList.remove('show'); ok.classList.remove('show');
+  const rec = { survey: eds.my_survey.get(), solution: eds.my_solution.get(), name: LAB.student.name, updatedAt: Date.now() };
+  if (!rec.survey.q && !rec.solution.q) { err.textContent = '질문을 하나 이상 써 주세요.'; err.classList.add('show'); return; }
+  try { await LAB.put(`q/${ban}/${G.id}/${me}`, rec); drafts[me] = rec; renderMembers();
+    ok.textContent = '저장했어요! 모둠원들도 ②에서 볼 수 있어요.' + (!rec.survey.q || !rec.solution.q ? ' (아직 한 개가 비어 있어요)' : ''); ok.classList.add('show');
+  } catch (e) { err.textContent = '저장하지 못했어요. 다시 눌러 주세요.'; err.classList.add('show'); }
+}
+async function saveFinal(k) {
+  const err = document.getElementById('finErr_' + k), ok = document.getElementById('finOk_' + k); err.classList.remove('show'); ok.classList.remove('show');
+  if (outLocked()) { err.textContent = '이미 설문에 내보냈어요. 고치려면 ④에서 먼저 "내보내기 취소"를 눌러요.'; err.classList.add('show'); return; }
+  const v = eds['fin_' + k].get(), msg = LAB.checkQ(v, true);
+  if (msg) { err.textContent = msg; err.classList.add('show'); return; }
+  try {
+    const cur = await LAB.get(`final/${ban}/${G.id}/${k}`);
+    if (cur && cur.at > base[k] && cur.by !== me && !confirm(`그 사이 ${cur.byName}이(가) 이 질문을 고쳐 저장했어요.\n\n[${cur.byName}의 질문] ${cur.q}\n\n내 것으로 덮어쓸까요?`)) return;
+    const rec = Object.assign(v, { by: me, byName: LAB.student.name, at: Date.now() });
+    await LAB.put(`final/${ban}/${G.id}/${k}`, rec);
+    fin[k] = rec; base[k] = rec.at; lastLine(k); document.getElementById('nt_' + k).classList.remove('show');
+    ok.textContent = '모둠 최종 질문으로 저장했어요!'; ok.classList.add('show'); renderOut();
+  } catch (e) { err.textContent = '저장하지 못했어요. 다시 눌러 주세요.'; err.classList.add('show'); }
+}
+
+// ---------- ④ 내보내기 ----------
+const outLocked = () => !!(fin.out && fin.out.submitted);
+function renderOut() {
+  const box = document.getElementById('outBox'), o = fin.out || {};
+  if (outLocked()) {
+    box.innerHTML = `<div class="sent"><div class="big">🚀</div><b>설문에 내보냈어요!</b><div class="dc-muted">${LAB.esc(o.byName)} · ${LAB.fmtTime(o.at)} · ${T[o.which].icon} ${T[o.which].name}${o.q && o.q.focus ? ' (' + LAB.focusTag(o.q.focus) + ')' : ''} · ${LAB.SHOWS[o.show].name}</div></div>
+      <div class="preview"><div class="pv-h">👀 전교생에게 이렇게 보여요</div>${surveyPreviewHtml(o, o.show === 'full' ? imgData : null)}</div>
+      <div class="saved-box"><div class="t">🗣️ 이 질문을 고른 이유</div>${LAB.nl2br(o.reason)}</div>
+      ${surveyCfg.open ? '<p class="hint" style="margin-top:10px;text-align:center">설문이 이미 시작되어 고칠 수 없어요.</p>' : '<button class="btn danger" id="unsend">↩️ 내보내기 취소하고 다시 고치기</button>'}`;
+    const u = document.getElementById('unsend'); if (u) u.onclick = unsend;
+    return;
+  }
+  const has = k => fin[k] && fin[k].q;
+  box.innerHTML = `
+    <p class="hint">설문에는 우리 모둠 질문이 <b>딱 하나만</b> 나가요. 우리 문제를 해결하는 데 <b>실태 파악</b>과 <b>문제 해결</b> 중 무엇이 지금 더 필요할까요?<br>
+      "이 문제가 진짜 있다는 증거가 아직 부족하다" → 실태 파악(①심각성·②원인) / "다들 문제인 건 안다, 어떻게 풀지가 궁금하다" → 문제 해결(③선호·의견·④아이디어)</p>
+    <label class="field-label">어떤 질문을 내보낼까요?</label>
+    <div class="which">${['survey', 'solution'].map(k => `<label class="chip ${has(k) ? '' : 'disabled'}"><span><input type="radio" name="which" value="${k}" ${o.which === k ? 'checked' : ''} ${has(k) ? '' : 'disabled'}> ${T[k].icon} ${T[k].name}</span>
+      <small>${has(k) ? (fin[k].focus ? '[' + LAB.focusTag(fin[k].focus) + '] ' : '') + LAB.esc(fin[k].q) : '③에서 먼저 저장해요'}</small></label>`).join('')}</div>
+    <label class="field-label" for="reason">왜 이 질문을 골랐나요? <span class="dc-muted">(모둠 토의 결과 — 보고서에도 쓰여요)</span></label>
+    <textarea id="reason" rows="3" placeholder="예) 우리 반에서는 다들 공감했지만 1·2학년도 그런지는 모른다. 해결책을 묻기 전에 문제가 얼마나 퍼져 있는지 먼저 확인하는 게 중요하다고 결정했다.">${LAB.esc(o.reason || '')}</textarea>
+    <label class="field-label">설문에서 어떻게 보여 줄까요?</label>
+    <div class="shows">${Object.keys(LAB.SHOWS).map(k => `<label class="chip"><input type="radio" name="show" value="${k}" ${(o.show || 'q') === k ? 'checked' : ''}><span>${LAB.SHOWS[k].icon} <b>${LAB.SHOWS[k].name}</b><small>${LAB.SHOWS[k].desc}</small></span></label>`).join('')}</div>
+    <div id="fullBox" style="display:none">
+      <label class="field-label" for="note">보충 설명 <span class="dc-muted">(응답자가 상황을 이해하도록 짧게)</span></label>
+      <textarea id="note" rows="3" maxlength="400" placeholder="예) 우리 학교 화장실은 층마다 칸이 3개뿐이에요. 쉬는 시간 10분 동안 평균 몇 명이 기다리는지 세어 봤더니...">${LAB.esc(o.note || '')}</textarea>
+      <label class="field-label">사진 <span class="dc-muted">(선택 · 한 장 · 자동으로 작게 줄여요)</span></label>
+      <input type="file" id="imgIn" accept="image/*">
+      <div id="imgNow" style="margin-top:6px"></div>
+    </div>
+    <div class="preview"><div class="pv-h">👀 미리보기 — 전교생에게 이렇게 보여요</div><div id="pv"></div></div>
+    <div class="error-msg" id="outErr"></div><div class="ok-msg" id="outOk"></div>
+    <div class="btn-row"><button class="btn ghost" id="outDraft">💾 여기까지 저장</button><button class="btn" id="outSend">🚀 설문에 내보내기</button></div>
+    ${o.at ? `<div class="last">💾 마지막 저장: ${LAB.esc(o.byName)} · ${LAB.fmtTime(o.at)}</div>` : ''}`;
+  box.querySelectorAll('input[name=show], input[name=which]').forEach(r => r.onchange = renderOutPreview);
+  box.querySelectorAll('#reason, #note').forEach(t => t.oninput = renderOutPreview);
+  document.getElementById('imgIn').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try { imgData = await LAB.shrinkImage(f, 720, 0.7); renderOutPreview(); } catch (x) { alert(x.message); }
+  };
+  document.getElementById('outDraft').onclick = () => saveOut(false);
+  document.getElementById('outSend').onclick = () => saveOut(true);
+  renderOutPreview();
+}
+function readOut() {
+  const w = document.querySelector('input[name=which]:checked'), s = document.querySelector('input[name=show]:checked');
+  return { which: w ? w.value : '', show: s ? s.value : 'q', reason: (document.getElementById('reason') || {}).value?.trim() || '', note: (document.getElementById('note') || {}).value?.trim() || '' };
+}
+function renderOutPreview() {
+  const pv = document.getElementById('pv'); if (!pv || outLocked()) return;
+  const o = readOut();
+  document.getElementById('fullBox').style.display = o.show === 'full' ? 'block' : 'none';
+  document.getElementById('imgNow').innerHTML = imgData ? `<img src="${imgData}" style="max-width:160px;border-radius:8px"> <button class="btn small ghost" id="imgDel">사진 빼기</button>` : '';
+  const d = document.getElementById('imgDel'); if (d) d.onclick = () => { imgData = null; document.getElementById('imgIn').value = ''; renderOutPreview(); };
+  const q = o.which ? eds['fin_' + o.which].get() : null;
+  pv.innerHTML = q ? surveyPreviewHtml(Object.assign({}, o, { q }), o.show === 'full' ? imgData : null) : '<div class="dc-muted">위에서 내보낼 질문을 고르면 미리보기가 나와요.</div>';
+}
+async function saveOut(send) {
+  const err = document.getElementById('outErr'), ok = document.getElementById('outOk'); err.classList.remove('show'); ok.classList.remove('show');
+  const o = readOut();
+  const fail = m => { err.textContent = m; err.classList.add('show'); };
+  if (send) {
+    if (!o.which) return fail('내보낼 질문을 골라 주세요.');
+    const cur = eds['fin_' + o.which].get();
+    if (!fin[o.which] || JSON.stringify(LAB.cleanQ(fin[o.which])) !== JSON.stringify(cur)) return fail('③의 최종 질문에 저장하지 않은 고친 내용이 있어요. ③에서 먼저 저장해 주세요.');
+    if (LAB.checkQ(cur)) return fail(LAB.checkQ(cur));
+    if (o.reason.length < 10) return fail('왜 이 질문을 골랐는지 조금 더 자세히 써 주세요.');
+    if (o.show === 'full' && !o.note && !imgData) return fail('"보충 설명·사진"을 골랐다면 설명이나 사진을 하나 이상 넣어 주세요.');
+    if (!confirm('이 질문을 설문에 내보낼까요?\n모둠원과 충분히 토의했는지 한 번 더 확인해요!')) return;
+  }
+  if (send && surveyCfg.open) return fail('설문이 이미 시작되었어요. 선생님께 말씀드려요.');
+  const rec = Object.assign(o, { q: o.which ? LAB.cleanQ(fin[o.which]) : null, no: G.no, title: G.title, hasImg: o.show === 'full' && !!imgData,
+    submitted: !!send, by: me, byName: LAB.student.name, at: Date.now() });
+  try {
+    if (rec.hasImg) await LAB.put(`img/${ban}/${G.id}`, imgData); else await LAB.del(`img/${ban}/${G.id}`);
+    await LAB.put(`final/${ban}/${G.id}/out`, rec);
+    fin.out = rec; renderOut();
+    if (!send) { const k = document.getElementById('outOk'); k.textContent = '저장했어요. 모둠원과 더 이야기한 뒤 내보내요.'; k.classList.add('show'); }
+  } catch (e) { fail('저장하지 못했어요. 다시 눌러 주세요.' + (rec.hasImg ? ' (사진이 너무 크면 다른 사진으로 해 봐요)' : '')); }
+}
+async function unsend() {
+  if (!confirm('내보내기를 취소할까요? 고친 뒤에 다시 내보내야 설문에 들어가요.')) return;
+  const sc = await LAB.get('survey/_config');
+  if (sc && sc.open) return alert('설문이 이미 시작되어 취소할 수 없어요.');
+  fin.out.submitted = false; await LAB.put(`final/${ban}/${G.id}/out/submitted`, false); renderOut();
+}
+
+async function poll() {
+  const [q, f, sc] = await Promise.all([LAB.get(`q/${ban}/${G.id}`), LAB.get(`final/${ban}/${G.id}`), LAB.get('survey/_config')]);
+  // 내 초안 칸은 그대로 두고(입력 중일 수 있음) 모아 보기만 다시 그린다
+  const mine = drafts[me]; drafts = q || {}; if (mine && (!drafts[me] || drafts[me].updatedAt < mine.updatedAt)) drafts[me] = mine;
+  renderMembers();
+  surveyCfg = sc || {};
+  f = f || {};
+  ['survey', 'solution'].forEach(k => {
+    const srv = f[k];
+    if (srv && srv.at > base[k] && srv.by !== me) {
+      const nt = document.getElementById('nt_' + k);
+      nt.innerHTML = `✏️ <b>${LAB.esc(srv.byName)}</b>이(가) 이 질문을 고쳐 저장했어요 (${LAB.fmtTime(srv.at)}) <button data-reload="${k}">최신으로 불러오기</button>`;
+      nt.classList.add('show');
+    }
+    fin['srv_' + k] = srv;
+  });
+  const wasLocked = outLocked();
+  if (JSON.stringify(f.out || null) !== JSON.stringify(fin.out || null)) {
+    // 쓰는 중인 ④ 칸을 지우지 않도록, 내보냄/취소 상태가 바뀔 때만 다시 그린다
+    if (wasLocked !== !!(f.out && f.out.submitted)) { fin.out = f.out; if (f.out && f.out.hasImg) imgData = await LAB.get(`img/${ban}/${G.id}`); renderOut(); }
+  }
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-reload]'); if (!b) return;
+  const k = b.dataset.reload, srv = fin['srv_' + k];
+  fin[k] = srv; base[k] = srv.at; eds['fin_' + k].set(srv); lastLine(k);
+  document.getElementById('nt_' + k).classList.remove('show'); renderOut();
+});
+
+LAB.start({ stage: 2, title: '질문 다듬기', subtitle: '전교생에게 던질 질문을 만들고, 모둠이 함께 딱 하나를 골라 내보내요.' }).then(async () => {
+  me = LAB.student.id;
+  const r = await LAB.resolveMyGroup();
+  ban = r.ban; G = r.group;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban, r.data, G));
+  if (!G) { document.getElementById('main').innerHTML = LAB.noGroupHtml(); return; }
+  members = G.members;
+  const [q, f, sc] = await Promise.all([LAB.get(`q/${ban}/${G.id}`), LAB.get(`final/${ban}/${G.id}`), LAB.get('survey/_config')]);
+  drafts = q || {}; fin = f || {}; surveyCfg = sc || {};
+  if (fin.out && fin.out.hasImg) imgData = await LAB.get(`img/${ban}/${G.id}`);
+  render();
+  setInterval(() => { if (!document.hidden) poll().catch(() => {}); }, 10000);
+});
+</script>
+</body>
+</html>

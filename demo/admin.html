@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교사용 관리</title>
+<link rel="stylesheet" href="../common.css?v=3">
+<style>
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
+.tabs button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; cursor: pointer; font-family: inherit; font-size: 0.84rem; }
+.tabs button.on { background: #212529; color: #fff; border-color: #212529; }
+.tabs select { width: auto; margin-left: auto; font-weight: 800; }
+table.t { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+table.t th, table.t td { border-bottom: 1px solid #e9ecef; padding: 7px 6px; text-align: left; vertical-align: top; }
+table.t th { background: #f8f9fa; font-size: 0.74rem; }
+table.t tr.sel td { background: #fff9db; }
+.ord { display: inline-block; min-width: 22px; text-align: center; background: #212529; color: #fff; border-radius: 6px; font-weight: 800; }
+.pill { display: inline-block; border-radius: 999px; padding: 1px 8px; font-size: 0.72rem; font-weight: 800; }
+.pill.ok { background: var(--ok-soft); color: var(--ok); } .pill.no { background: #f1f3f5; color: #868e96; } .pill.warn { background: #fff4e6; color: #e8590c; }
+.gcard { border: 1.5px solid #e9ecef; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; font-size: 0.84rem; }
+.gcard .h { font-weight: 800; margin-bottom: 4px; }
+.mem { display: inline-flex; align-items: center; gap: 2px; background: #f1f3f5; border-radius: 8px; padding: 2px 8px; margin: 2px; }
+.mem.fresh { animation: fresh 2.5s ease-out; }
+@keyframes fresh { 0%, 30% { background: #b2f2bb; box-shadow: 0 0 0 3px #69db7c; } 100% { background: #f1f3f5; box-shadow: none; } }
+.gcard.full { border-color: #8ce99a; }
+.live-dot { font-size: 0.7rem; color: #2b8a3e; font-weight: 800; animation: blink 1.6s infinite; }
+@keyframes blink { 50% { opacity: .35; } }
+.pick-log { background: #f8f9fa; border-radius: 12px; padding: 8px 12px; margin-top: 10px; font-size: 0.8rem; max-height: 180px; overflow-y: auto; line-height: 1.7; }
+.pick-log .h { font-weight: 800; margin-bottom: 2px; }
+.demo-reset { margin-left: 6px; border: 1.5px dashed #adb5bd; background: #fff; border-radius: 10px; padding: 6px 10px; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
+.mem button { border: none; background: none; color: #adb5bd; cursor: pointer; padding: 0 2px; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1.5px solid #e9ecef; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
+.switch b { display: block; } .switch small { color: var(--text-muted); }
+.switch .btn { width: auto; margin: 0; padding: 9px 16px; }
+.switch.on { border-color: #8ce99a; background: var(--ok-soft); }
+.kpi { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+.kpi div { background: #f8f9fa; border-radius: 10px; padding: 8px; text-align: center; font-size: 0.74rem; color: #555; }
+.kpi b { display: block; font-size: 1.1rem; color: var(--text); }
+.grid-wrap { overflow-x: auto; }
+table.status th, table.status td { text-align: center; white-space: nowrap; }
+table.status td.nm { text-align: left; font-weight: 700; }
+table.status th.copy { cursor: pointer; }
+table.status th.copy:hover { background: #e7f5ff; }
+table.status th small { font-weight: 400; color: var(--text-muted); }
+td.ok { background: #ebfbee; color: #2b8a3e; font-weight: 700; } td.half { background: #fff9db; color: #e67700; font-weight: 700; }
+td.no { background: #fff0f0; color: #e03131; font-weight: 800; } td.na { color: #ced4da; }
+.legend { display: flex; gap: 6px; margin: 4px 0 8px; font-size: 0.74rem; }
+.legend .c { border-radius: 6px; padding: 2px 8px; }
+.legend .ok { background: #ebfbee; color: #2b8a3e; } .legend .half { background: #fff9db; color: #e67700; } .legend .no { background: #fff0f0; color: #e03131; } .legend .na { background: #f8f9fa; color: #adb5bd; }
+.rep-sec { margin: 6px 0; } .rep-sec b { display: block; font-size: 0.74rem; color: var(--stage); }
+</style>
+</head>
+<body>
+<div class="wrap wide">
+  <div id="lab-head"></div>
+  <div id="gate" class="card" style="max-width:360px;margin:40px auto">
+    <h2>👩‍🏫 교사용 관리</h2>
+    <input type="password" id="pw" placeholder="비밀번호">
+    <div class="error-msg" id="pwErr">비밀번호가 달라요.</div>
+    <button class="btn" onclick="checkPw()" style="background:#212529">입장</button>
+  </div>
+  <div id="app" style="display:none">
+    <div class="tabs" id="tabs"></div>
+    <div id="view"><div class="loading-state">불러오는 중...</div></div>
+  </div>
+</div>
+
+<script src="../session.js?v=1"></script>
+<script src="../lab.js?v=5"></script>
+<script src="../demo-seed.js?v=1"></script>
+<script>
+const PASSWORD = 'byung0703!';
+const TABS = [['t0', '📋 학급 현황'], ['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
+let tab = 't0', ban = '3-1', sel = [];
+try { tab = localStorage.getItem('last26AdminTab') || 't0'; ban = localStorage.getItem('last26AdminBan') || '3-1'; } catch (e) {}
+if (LAB.DEMO && ban === 'T') ban = '3-1';
+const E = LAB.esc;
+
+window.checkPw = function () {
+  if (document.getElementById('pw').value !== PASSWORD) return document.getElementById('pwErr').classList.add('show');
+  try { sessionStorage.setItem('last26Admin', '1'); } catch (e) {}
+  open();
+};
+document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') checkPw(); });
+
+function open() {
+  document.getElementById('gate').style.display = 'none'; document.getElementById('app').style.display = 'block';
+  paintTabs(); show();
+}
+function paintTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map(t => `<button data-tab="${t[0]}" class="${tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('') +
+    `<select id="banSel">${LAB.BANS.concat(LAB.DEMO ? [] : ['T']).map(b => `<option value="${b}" ${b === ban ? 'selected' : ''}>${LAB.banLabel(b)}</option>`).join('')}</select>` +
+    (LAB.DEMO ? '<button id="demoReset" class="demo-reset" title="모든 선생님이 함께 쓰는 체험 데이터를 처음 상태로">🔄 체험 데이터 처음으로</button>' : '');
+  document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; save(); paintTabs(); show(); });
+  document.getElementById('banSel').onchange = e => { ban = e.target.value; sel = []; save(); show(); };
+  const rb = document.getElementById('demoReset');
+  if (rb) rb.onclick = async () => {
+    if (!confirm('체험 데이터를 처음 상태로 되돌릴까요?\n\n다른 선생님들도 같은 체험판을 쓰고 있어서, 지금까지 누가 바꾼 내용도 모두 처음으로 돌아가요. (실제 학생 데이터와는 상관없어요)')) return;
+    rb.disabled = true; rb.textContent = '되돌리는 중...';
+    try { await LAB.resetDemo(); sel = []; } catch (e) { alert('되돌리지 못했어요. 다시 눌러 주세요.'); }
+    paintTabs(); show();
+  };
+}
+function save() { try { localStorage.setItem('last26AdminTab', tab); localStorage.setItem('last26AdminBan', ban); } catch (e) {} }
+function show() { stopPickLive(); pickState = null; document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; ({ t0, t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
+const sv = (b, g) => `?ban=${encodeURIComponent(b)}&g=${encodeURIComponent(g)}`;
+
+// ---------- 📋 학급 현황 (학생 × 단계 제출 여부 한눈에) ----------
+async function t0() {
+  if (ban === 'T') { document.getElementById('view').innerHTML = '<div class="empty-state">학급 현황은 실제 반(3학년 1~5반)을 골라야 보여요.</div>'; return; }
+  const [roster, D, L, C, Q, F, R, CT, P, RS] = await Promise.all([LAB.classRoster(ban), LAB.loadGroups(ban), LAB.get(`likes/${ban}`), LAB.get(`comments/${ban}`),
+    LAB.get(`q/${ban}`), LAB.get(`final/${ban}`), LAB.get(`report/${ban}`), LAB.get(`contrib/${ban}`), LAB.get(`poster/${ban}`), LAB.get('resp')]);
+  const probs = D.problems, likes = L || {}, cmts = C || {}, q = Q || {}, fin = F || {}, rep = R || {}, ct = CT || {}, pos = P || {}, resp = RS || {};
+  const anyResp = Object.keys(resp).length > 0; // 설문 시작 전엔 '해당 없음'
+  const nProb = {}, nLike = {}, nCmt = {};
+  Object.keys(probs).forEach(k => { const a = probs[k].id || k; nProb[a] = (nProb[a] || 0) + 1; });
+  Object.keys(likes).forEach(k => Object.keys(likes[k] || {}).forEach(s => nLike[s] = (nLike[s] || 0) + 1));
+  Object.keys(cmts).forEach(k => Object.values(cmts[k] || {}).forEach(x => nCmt[x.id] = (nCmt[x.id] || 0) + 1));
+  const repN = g => Object.keys(rep[g] || {}).filter(k => rep[g][k] && rep[g][k].text).length;
+  // 칸 정의: [제목, 값(학생) → { ok:true/false/null(해당 없음), txt }]
+  const COLS = [
+    ['1️⃣ 문제 올림', s => ({ ok: !!nProb[s.id], txt: nProb[s.id] ? nProb[s.id] + '개' : '✗' })],
+    ['공감·댓글', s => { const n = (nLike[s.id] || 0) + (nCmt[s.id] || 0); return { ok: n > 0, txt: n ? `❤️${nLike[s.id] || 0} 💬${nCmt[s.id] || 0}` : '✗' }; }],
+    ['모둠', s => { const g = LAB.groupOf(D, s.id); return D.groups.length ? { ok: !!g, txt: g ? g.no + '모둠' : '✗' } : { ok: null, txt: '–' }; }],
+    ['2️⃣ 내 질문', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const d = (q[g.id] || {})[s.id]; const n = d ? ['survey', 'solution'].filter(k => d[k] && d[k].q).length : 0; return { ok: n === 2 ? true : n ? 'half' : false, txt: n ? n + '/2' : '✗' }; }],
+    ['모둠 내보냄', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const o = (fin[g.id] || {}).out; return { ok: !!(o && o.submitted), txt: o && o.submitted ? '🚀' : '✗' }; }],
+    ['3️⃣ 설문', s => { const r = resp[s.id]; if (!anyResp) return { ok: null, txt: '–' }; return { ok: r && r.done ? true : r && r.answers ? 'half' : false, txt: r && r.done ? '제출' : r && r.answers ? '하는 중' : '✗' }; }],
+    ['4️⃣ 보고서(모둠)', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const n = repN(g.id); return { ok: n === 6 ? true : n ? 'half' : false, txt: n + '/6' }; }],
+    ['내 기여', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; const c = (ct[g.id] || {})[s.id]; return { ok: !!(c && c.text), txt: c && c.text ? '✓' : '✗' }; }],
+    ['포스터(모둠)', s => { const g = LAB.groupOf(D, s.id); if (!g) return { ok: null, txt: '–' }; return { ok: !!pos[g.id], txt: pos[g.id] ? '🎨' : '✗' }; }],
+  ];
+  const cells = roster.map(s => COLS.map(c => c[1](s)));
+  const sum = COLS.map((c, j) => { const v = cells.map(r => r[j]).filter(x => x.ok !== null); return { done: v.filter(x => x.ok === true).length, all: v.length }; });
+  const cls = x => x.ok === true ? 'ok' : x.ok === 'half' ? 'half' : x.ok === false ? 'no' : 'na';
+  document.getElementById('view').innerHTML = `
+  <div class="card"><h2>📋 ${LAB.banLabel(ban)} 학급 현황 <span class="dc-muted">${roster.length}명 · 칸 제목을 누르면 안 한 학생 명단이 복사돼요</span></h2>
+    <div class="legend"><span class="c ok">완료</span><span class="c half">하는 중</span><span class="c no">안 함</span><span class="c na">해당 없음(모둠 전)</span></div>
+    <div class="grid-wrap"><table class="t status"><tr><th>번호</th><th>이름</th>${COLS.map((c, j) => `<th class="copy" data-col="${j}" title="안 한 학생 복사">${c[0]}<br><small>${sum[j].done}/${sum[j].all}</small></th>`).join('')}</tr>
+      ${roster.map((s, i) => `<tr><td>${s.num}</td><td class="nm">${E(s.name)}</td>${cells[i].map(x => `<td class="${cls(x)}">${x.txt}</td>`).join('')}</tr>`).join('')}
+    </table></div>
+    <div class="ok-msg" id="copyOk"></div>
+    <p class="hint" style="margin-top:8px">"하는 중"은 일부만 했다는 뜻이에요(질문 1/2, 설문 답하다 제출 전, 보고서 칸 일부). 모둠 칸은 모둠원 모두에게 같은 값이 보여요.</p></div>`;
+  document.querySelectorAll('[data-col]').forEach(th => th.onclick = () => {
+    const j = +th.dataset.col, miss = roster.filter((s, i) => cells[i][j].ok !== true && cells[i][j].ok !== null);
+    const t = miss.map(s => `${s.num} ${s.name}`).join(', ');
+    const ok = document.getElementById('copyOk');
+    ok.textContent = miss.length ? `${COLS[j][0].replace(/[^\sㄱ-힣()]/g, '').trim()} 안 한 학생 ${miss.length}명: ${t}` : '모두 했어요! 🎉'; ok.classList.add('show');
+    if (miss.length && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
+  });
+}
+
+// ---------- ① 문제·모둠 ----------
+async function t1() {
+  const [D, likes, comments, roster] = await Promise.all([LAB.loadGroups(ban), LAB.get(`likes/${ban}`), LAB.get(`comments/${ban}`), ban === 'T' ? [] : LAB.classRoster(ban)]);
+  const L = likes || {}, C = comments || {}, P = D.problems;
+  const sc = id => Object.keys(L[id] || {}).length * 10000 + Math.min(Object.keys(C[id] || {}).length, 9999);
+  const ids = Object.keys(P).sort((a, b) => sc(b) - sc(a) || P[a].updatedAt - P[b].updatedAt);
+  const topics = D.groups.map(g => g.id);
+  if (!sel.length) sel = topics.slice();
+  const author = id => (P[id] && P[id].id) || id;
+  const nBy = {}; ids.forEach(id => nBy[author(id)] = (nBy[author(id)] || 0) + 1);
+  const notPosted = roster.filter(s => !nBy[s.id]);
+  const changed = JSON.stringify(sel) !== JSON.stringify(topics);
+  document.getElementById('view').innerHTML = `
+  <div class="card"><h2>1) 공감 많은 문제 5개 고르기 <span class="dc-muted">${LAB.banLabel(ban)} · 문제 ${ids.length}개 · 올린 사람 ${Object.keys(nBy).length}${roster.length ? ' / ' + roster.length : ''}명</span></h2>
+    ${notPosted.length ? `<p class="hint">아직 안 올린 학생: ${notPosted.map(s => s.num + ' ' + E(s.name)).join(', ')}</p>` : ''}
+    <p class="hint">체크한 순서가 모둠 번호(1~5모둠)가 돼요. 비슷한 문제·부적절한 문제는 빼고 다음 순위를 골라도 돼요. 한 학생이 여러 개 올렸어도 <b>한 사람 문제는 하나만</b> 고를 수 있어요(제안자는 자기 모둠에 고정되니까요).</p>
+    <div class="btn-row" style="margin-bottom:8px"><button class="btn small ghost" id="top5">🔥 상위 5개 자동 체크</button><button class="btn small ghost" id="clr">체크 모두 해제</button></div>
+    <table class="t"><tr><th></th><th>순위</th><th>문제</th><th>❤️</th><th>💬</th><th>제안</th></tr>
+    ${ids.map((id, i) => { const p = P[id], o = sel.indexOf(id); return `<tr class="${o >= 0 ? 'sel' : ''}"><td><input type="checkbox" data-pick="${id}" ${o >= 0 ? 'checked' : ''}> ${o >= 0 ? `<span class="ord">${o + 1}</span>` : ''}</td><td>${i + 1}</td>
+      <td>${LAB.cat(p.cat).icon} <b>${E(p.title)}</b><details><summary class="dc-muted">내용</summary>${LAB.nl2br(p.story)}<br><i>${LAB.nl2br(p.who || '')}</i></details></td>
+      <td>${Object.keys(L[id] || {}).length}</td><td>${Object.keys(C[id] || {}).length}</td><td>${p.num || ''} ${E(p.name)}${nBy[author(id)] > 1 ? ` <span class="pill no">${nBy[author(id)]}개</span>` : ''} <button class="btn small danger" style="padding:2px 6px" data-delp="${id}" title="부적절한 글 삭제">🗑</button></td></tr>`; }).join('') || '<tr><td colspan="6" class="empty-state">아직 올라온 문제가 없어요.</td></tr>'}
+    </table>
+    <button class="btn" id="confirmTopics" ${changed && sel.length ? '' : 'disabled'} style="background:#212529">✅ 체크한 ${sel.length}개로 모둠 주제 확정${changed ? '' : ' (변경 없음)'}</button>
+  </div>
+
+  <div class="card" id="pickCard"></div>`;
+  const v = document.getElementById('view');
+  v.querySelectorAll('[data-pick]').forEach(c => c.onchange = () => {
+    const id = c.dataset.pick;
+    if (c.checked) { if (sel.length >= 5) { c.checked = false; return alert('5개까지만 고를 수 있어요.'); }
+      if (sel.some(x => author(x) === author(id))) { c.checked = false; return alert(`${P[id].name} 학생의 다른 문제가 이미 체크되어 있어요.
+한 학생은 한 모둠에만 들어갈 수 있어서, 한 사람 문제는 하나만 고를 수 있어요.`); }
+      sel.push(id); } else sel = sel.filter(x => x !== id);
+    t1();
+  });
+  document.getElementById('top5').onclick = () => { sel = []; ids.forEach(id => { if (sel.length < 5 && !sel.some(x => author(x) === author(id))) sel.push(id); }); t1(); };
+  document.getElementById('clr').onclick = () => { sel = []; t1(); };
+  document.getElementById('confirmTopics').onclick = async () => {
+    const lost = Object.keys(D.picks).filter(k => !sel.includes(D.picks[k].topic));
+    if (!confirm(`${LAB.banLabel(ban)} 모둠 주제를 이 ${sel.length}개로 확정할까요?` + (lost.length ? `\n\n⚠️ 빠지는 주제에 신청한 ${lost.length}명은 신청이 취소돼요.` : ''))) return;
+    await LAB.put(`pick/${ban}/_config/topics`, sel);
+    await Promise.all(lost.map(k => LAB.del(`pick/${ban}/${k}`)));
+    // 선정된 문제의 제안자가 다른 모둠에 신청해 둔 기록은 지운다(제안자는 자기 문제에 고정)
+    await Promise.all(sel.map(author).filter(a => D.picks[a]).map(a => LAB.del(`pick/${ban}/${a}`)));
+    t1();
+  };
+  pickState = { ban, D, roster, prev: D.picks };
+  paintPick();
+  startPickLive();
+  v.querySelectorAll('[data-delp]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.delp;
+    if (topics.includes(id)) return alert('모둠 주제로 확정된 문제는 지울 수 없어요. 먼저 주제에서 빼고 확정해 주세요.');
+    if (!confirm(`${P[id].name}의 문제 글을 지울까요? (공감·댓글도 함께 지워져요, 되돌릴 수 없음)`)) return;
+    await Promise.all([LAB.del(`problems/${ban}/${id}`), LAB.del(`likes/${ban}/${id}`), LAB.del(`comments/${ban}/${id}`)]); sel = sel.filter(x => x !== id); t1();
+  });
+}
+
+// ---------- ① 선착순 신청 현황 (실시간) ----------
+let pickState = null, pickLive = null, pickPoll = null, pickPending = false;
+const pickLog = {}; // 반 → [{t, html}]  학생들이 들어오고 옮기는 기록
+function stopPickLive() { if (pickLive) pickLive.close(); pickLive = null; clearInterval(pickPoll); pickPoll = null; }
+function startPickLive() {
+  stopPickLive();
+  const b = pickState.ban;
+  const refresh = async () => {
+    if (!pickState || pickState.ban !== b || tab !== 't1') return stopPickLive();
+    let raw; try { raw = await LAB.get(`pick/${b}`); } catch (e) { return; }
+    if (!pickState || pickState.ban !== b) return;
+    const D = LAB.buildGroups(raw, pickState.D.problems);
+    if (JSON.stringify(D.picks) === JSON.stringify(pickState.prev) && JSON.stringify(D.conf) === JSON.stringify(pickState.D.conf)) return;
+    logPickDiff(b, pickState.prev, D);
+    pickState.D = D; pickState.prev = D.picks;
+    paintPick();
+  };
+  pickLive = LAB.listen(`pick/${b}`, refresh);
+  pickPoll = setInterval(refresh, pickLive ? 8000 : 2500); // 실시간 연결이 끊겨도 놓치지 않게
+}
+function logPickDiff(b, old, D) {
+  const no = tid => { const g = D.groups.find(x => x.id === tid); return g ? g.no + '모둠' : '?'; };
+  const t = LAB.fmtTime(Date.now()).split(' ')[1], L = pickLog[b] = pickLog[b] || [];
+  pickState.fresh = {};
+  Object.keys(D.picks).forEach(id => {
+    const n = D.picks[id], o = old[id], who = `<b>${(n.num || '') + ' ' + E(n.name)}</b>`;
+    if (!o) { L.unshift({ t, html: `🟢 ${who} → ${no(n.topic)} 신청${n.byTeacher ? ' (선생님 배정)' : ''}` }); pickState.fresh[id] = 1; }
+    else if (o.topic !== n.topic) { L.unshift({ t, html: `🔀 ${who} ${no(o.topic)} → <b>${no(n.topic)}</b> 이동` }); pickState.fresh[id] = 1; }
+  });
+  Object.keys(old).forEach(id => { if (!D.picks[id]) L.unshift({ t, html: `⚪ <b>${(old[id].num || '') + ' ' + E(old[id].name)}</b> ${no(old[id].topic)} 신청 취소` }); });
+  L.splice(30);
+}
+function paintPick() {
+  const box = document.getElementById('pickCard'); if (!box || !pickState) return;
+  // 정원 칸을 고치거나 배정 목록을 펼친 중이면, 손을 뗄 때까지 다시 그리기를 미룬다
+  if (box.contains(document.activeElement) && /INPUT|SELECT/.test(document.activeElement.tagName)) {
+    if (!pickPending) { pickPending = true; document.activeElement.addEventListener('blur', () => { pickPending = false; setTimeout(paintPick, 50); }, { once: true }); }
+    return;
+  }
+  const { D, roster } = pickState, fresh = pickState.fresh || {}; pickState.fresh = {};
+  const assigned = {}; D.groups.forEach(g => g.members.forEach(m => assigned[m.id] = g));
+  const unassigned = roster.filter(s => !assigned[s.id]);
+  const joined = roster.length ? roster.length - unassigned.length : Object.keys(assigned).length;
+  const log = pickLog[pickState.ban] || [];
+  box.innerHTML = `<h2>2) 선착순 신청 <span class="live-dot">● 실시간</span> <span class="dc-muted">모둠 정한 학생 ${joined}${roster.length ? ' / ' + roster.length : ''}명</span></h2>
+    <div class="switch ${D.conf.open ? 'on' : ''}"><div><b>${D.conf.open ? '🟢 신청 받는 중' : '⏸ 신청 닫힘'}</b><small>모둠당 정원(제안자 포함)</small>
+      <input type="text" id="cap" value="${D.cap}" style="width:60px;padding:4px 8px;margin-left:6px">명</div>
+      <button class="btn" id="togglePick" ${D.groups.length ? '' : 'disabled'} style="background:${D.conf.open ? '#e03131' : '#2b8a3e'}">${D.conf.open ? '마감하기' : '선착순 시작'}</button></div>
+    ${D.groups.map(g => `<div class="gcard${g.members.length >= D.cap ? ' full' : ''}"><div class="h">${g.no}모둠 · ${E(g.title)} <span class="pill ${g.members.length >= D.cap ? 'ok' : 'warn'}">${g.members.length}/${D.cap}${g.members.length >= D.cap ? ' 마감' : ''}</span></div>
+      ${g.members.map(m => `<span class="mem${fresh[m.id] ? ' fresh' : ''}">${m.proposer ? '📌' : ''}${m.num || ''} ${E(m.name)}${m.proposer ? '' : `<button data-unpick="${m.id}" title="빼기">✕</button>`}</span>`).join('')}</div>`).join('')}
+    ${D.groups.length ? `<div class="gcard" style="background:#fff9db"><div class="h">🧭 아직 모둠 없는 학생 ${unassigned.length}명</div>
+      ${unassigned.map(s => `<span class="mem">${s.num} ${E(s.name)} <select data-assign="${s.id}" data-name="${E(s.name)}" data-num="${s.num}" style="width:auto;padding:2px 4px;font-size:0.74rem"><option value="">배정…</option>${D.groups.map(g => `<option value="${g.id}">${g.no}모둠</option>`).join('')}</select></span>`).join('') || '<span class="dc-muted">모두 모둠을 정했어요! 🎉</span>'}</div>` : ''}
+    <div class="pick-log"><div class="h">📜 움직임 기록 <span class="dc-muted">(이 화면을 연 뒤부터)</span></div>${log.length ? log.map(x => `<div><span class="dc-muted">${x.t}</span> ${x.html}</div>`).join('') : '<div class="dc-muted">아직 움직임이 없어요. 학생이 신청하거나 옮기면 여기 바로 떠요.</div>'}</div>
+    <p class="hint">선생님 배정·빼기는 정원과 상관없이 바로 적용돼요. 학생 화면: <a href="s1-pick.html?ban=${pickState.ban}" target="_blank">모둠 정하기</a> · <a href="s1-board.html?ban=${pickState.ban}" target="_blank">게시판</a> (교사 계정 3000/김병선으로 로그인 상태일 때)</p>`;
+  const b = pickState.ban;
+  document.getElementById('togglePick').onclick = async () => {
+    const cap = parseInt(document.getElementById('cap').value, 10) || 5;
+    if (!D.conf.open && !confirm(`${LAB.banLabel(b)} 선착순 신청을 시작할까요? (정원 ${cap}명)\n학생 화면에 바로 열려요.`)) return;
+    await LAB.patch(`pick/${b}/_config`, { open: !D.conf.open, cap }); t1();
+  };
+  box.querySelectorAll('[data-unpick]').forEach(x => x.onclick = async () => { if (confirm('이 학생을 모둠에서 뺄까요?')) { await LAB.del(`pick/${b}/${x.dataset.unpick}`); } });
+  box.querySelectorAll('[data-assign]').forEach(x => x.onchange = async () => {
+    if (!x.value) return;
+    const v = x.value; x.blur();
+    await LAB.put(`pick/${b}/${x.dataset.assign}`, { topic: v, name: x.dataset.name, num: +x.dataset.num || 0, ts: LAB.TS, byTeacher: true });
+  });
+}
+
+// ---------- ② 질문 ----------
+async function t2() {
+  const [D, Q, F, sc] = await Promise.all([LAB.loadGroups(ban), LAB.get(`q/${ban}`), LAB.get(`final/${ban}`), LAB.get('survey/_config')]);
+  const q = Q || {}, f = F || {};
+  if (!D.groups.length) { document.getElementById('view').innerHTML = '<div class="empty-state">아직 모둠 주제가 없어요. ①에서 먼저 정해 주세요.</div>'; return; }
+  document.getElementById('view').innerHTML = `<div class="card"><h2>${LAB.banLabel(ban)} 질문 진행 상황</h2>
+    <p class="hint">설문이 ${sc && sc.open ? '<b>열려 있어서</b> 학생은 내보내기 취소를 못 해요.' : '아직 닫혀 있어 학생들이 내보내기를 취소하고 고칠 수 있어요.'}</p></div>` +
+    D.groups.map(g => {
+      const d = q[g.id] || {}, fx = f[g.id] || {}, o = fx.out;
+      const wrote = g.members.filter(m => d[m.id]).length;
+      return `<div class="card"><h2>${g.no}모둠 · ${E(g.title)}</h2>
+        <div style="font-size:0.84rem;margin-bottom:8px">① 개인 질문 <span class="pill ${wrote === g.members.length ? 'ok' : 'warn'}">${wrote}/${g.members.length}명</span>
+          ② 최종 실태 파악 <span class="pill ${fx.survey ? 'ok' : 'no'}">${fx.survey ? '✓' : '–'}</span> 최종 문제 해결 <span class="pill ${fx.solution ? 'ok' : 'no'}">${fx.solution ? '✓' : '–'}</span>
+          ③ 내보내기 <span class="pill ${o && o.submitted ? 'ok' : 'no'}">${o && o.submitted ? '🚀 ' + LAB.QTYPES[o.which].short + ' · ' + LAB.SHOWS[o.show].name : '아직'}</span></div>
+        ${o && o.submitted ? LAB.qViewHtml(o.q, true) + `<div class="saved-box"><div class="t">고른 이유</div>${LAB.nl2br(o.reason)}${o.note ? '<div class="t" style="margin-top:6px">보충 설명</div>' + LAB.nl2br(o.note) : ''}</div>` : ''}
+        <details style="margin-top:8px;font-size:0.82rem"><summary>개인 질문 보기</summary>${g.members.map(m => `<div style="margin:6px 0"><b>${E(m.name)}</b> 📊 ${E(d[m.id] && d[m.id].survey && d[m.id].survey.q || '–')} / 💡 ${E(d[m.id] && d[m.id].solution && d[m.id].solution.q || '–')}</div>`).join('')}</details>
+        <div class="btn-row" style="margin-top:8px"><a class="btn small ghost" target="_blank" href="s2-question.html${sv(ban, g.id)}">학생 화면 보기</a>
+          ${o && o.submitted ? `<button class="btn small danger" data-unsend="${g.id}">내보내기 취소(되돌려 주기)</button>` : ''}</div></div>`;
+    }).join('');
+  document.querySelectorAll('[data-unsend]').forEach(b => b.onclick = async () => { if (confirm('이 모둠의 내보내기를 취소할까요? 학생들이 다시 고쳐서 내보내야 설문에 들어가요.')) { await LAB.put(`final/${ban}/${b.dataset.unsend}/out/submitted`, false); t2(); } });
+}
+
+// ---------- ③ 설문 (전교 공통) ----------
+async function t3() {
+  const [sc, F, R, roster, ...gs] = await Promise.all([LAB.get('survey/_config'), LAB.get('final'), LAB.get('resp'), LAB.roster(), ...LAB.BANS.map(b => LAB.loadGroups(b))]);
+  const c = sc || {}, items = LAB.surveyItems(F), resp = R || {};
+  const rs = Object.values(resp).filter(r => r && r.answers);
+  const by = (g, b) => rs.filter(r => String(r.grade) === String(g) && (!b || String(r.ban) === String(b)));
+  const rost = (g, b) => Object.values(roster).filter(s => String(s.grade) === String(g) && (!b || String(s.ban) === String(b))).length;
+  const classes = [...new Set(Object.values(roster).map(s => s.grade + '-' + s.ban))].sort();
+  document.getElementById('view').innerHTML = `
+  <div class="card"><h2>📡 전교생 설문 스위치 <span class="dc-muted">(모든 반 공통)</span></h2>
+    <div class="switch ${c.open ? 'on' : ''}"><div><b>${c.open ? '🟢 설문 진행 중' : '⏸ 설문 닫힘'}</b><small>열면 전교생이 survey.html에서 답할 수 있어요. 열려 있는 동안 3학년은 내보낸 질문을 고칠 수 없어요.</small></div>
+      <button class="btn" id="tgOpen" style="background:${c.open ? '#e03131' : '#2b8a3e'}">${c.open ? '설문 닫기' : '설문 열기'}</button></div>
+    <div class="switch ${c.results ? 'on' : ''}"><div><b>${c.results ? '🟢 결과 공개 중' : '🔒 결과 비공개'}</b><small>공개하면 3학년이 3단계 ② 결과 확인과 보고서에서 결과를 볼 수 있어요.</small></div>
+      <button class="btn" id="tgRes" style="background:${c.results ? '#e03131' : '#2b8a3e'}">${c.results ? '결과 숨기기' : '결과 공개'}</button></div>
+    <div class="btn-row"><a class="btn small ghost" href="survey.html" target="_blank">👀 설문 미리보기 (교사 계정 · 저장 안 됨)</a><a class="btn small ghost" href="s3-result.html" target="_blank">📊 결과 화면</a><button class="btn small ghost" id="csvAll">⬇️ 전체 응답 CSV</button></div>
+  </div>
+  <div class="card"><h2>준비된 질문 ${items.length}개 <span class="dc-muted">/ 목표 ${gs.reduce((a, d) => a + d.groups.length, 0)}개(확정된 모둠 수)</span></h2>
+    <table class="t"><tr><th>반</th><th>모둠</th><th>내보냄</th></tr>${LAB.BANS.map((b, i) => `<tr><td>${LAB.banLabel(b)}</td><td>${gs[i].groups.length}개</td><td>${items.filter(x => x.ban === b).length}개 ${gs[i].groups.filter(g => !items.some(x => x.ban === b && x.g === g.id)).map(g => `<span class="pill warn">${g.no}모둠 아직</span>`).join(' ')}</td></tr>`).join('')}</table>
+    <details style="margin-top:8px"><summary>질문 전체 보기</summary>${items.map((x, i) => `<div style="margin:8px 0"><b>Q${i + 1}</b> <span class="dc-muted">${LAB.banShort(x.ban)} ${x.out.no}모둠 · ${LAB.SHOWS[x.out.show].icon}</span>${LAB.qViewHtml(x.q, true)}</div>`).join('')}</details></div>
+  <div class="card"><h2>참여 현황 <span class="dc-muted">(한 문항이라도 답한 사람 · 제출 완료 ${rs.filter(r => r.done).length}명)</span></h2>
+    <div class="kpi"><div><b>${rs.length} / ${Object.keys(roster).length}</b>전체</div>${[1, 2, 3].map(g => `<div><b>${by(g).length} / ${rost(g)}</b>${g}학년</div>`).join('')}</div>
+    <div class="kpi" style="margin-top:6px">${classes.map(k => { const [g, b] = k.split('-'); const n = by(g, b).length, t = rost(g, b); return `<div style="${n < t ? 'background:#fff4e6' : ''}"><b>${n}/${t}</b>${g}-${b}반</div>`; }).join('')}</div></div>`;
+  document.getElementById('tgOpen').onclick = async () => { if (!c.open && items.length === 0) return alert('설문에 나간 질문이 없어요.'); if (confirm(c.open ? '설문을 닫을까요?' : `질문 ${items.length}개로 전교생 설문을 열까요?`)) { await LAB.patch('survey/_config', { open: !c.open }); t3(); } };
+  document.getElementById('tgRes').onclick = async () => { await LAB.patch('survey/_config', { results: !c.results }); t3(); };
+  document.getElementById('csvAll').onclick = () => {
+    const head = ['학년', '반', '제출'].concat(items.map((x, i) => `Q${i + 1}(${LAB.banShort(x.ban)} ${x.out.no}모둠) ${x.q.q}`));
+    const rows = [head];
+    rs.sort((a, b) => a.grade - b.grade || a.ban - b.ban).forEach(r => rows.push([r.grade, r.ban, r.done ? 'O' : ''].concat(items.map(x => {
+      const a = r.answers[x.key]; if (!LAB.isAnswered(x.q, a)) return '';
+      return x.q.type === 'open' ? a : (a.sel || []).map(i => x.q.options[i]).concat(a.etc && a.etc.trim() ? ['기타: ' + a.etc.trim()] : []).join(' / ');
+    }))));
+    LAB.downloadCsv('전교생설문_전체응답.csv', rows);
+  };
+}
+
+// ---------- ④ 보고서·포스터 ----------
+const SEC_NAMES = { problem: '🎯 문제', method: '❓ 질문과 이유', data: '📊 결과(숫자)', insight: '🔎 실태 파악', solution: '💡 해결 방안', spread: '📣 퍼뜨리기' };
+async function t4() {
+  const [D, R, C, P] = await Promise.all([LAB.loadGroups(ban), LAB.get(`report/${ban}`), LAB.get(`contrib/${ban}`), LAB.get(`poster/${ban}`)]);
+  const r = R || {}, c = C || {}, p = P || {};
+  if (!D.groups.length) { document.getElementById('view').innerHTML = '<div class="empty-state">아직 모둠이 없어요.</div>'; return; }
+  document.getElementById('view').innerHTML = D.groups.map(g => {
+    const rp = r[g.id] || {}, filled = Object.keys(SEC_NAMES).filter(k => rp[k] && rp[k].text).length, cc = c[g.id] || {}, po = p[g.id];
+    return `<div class="card"><h2>${g.no}모둠 · ${E(g.title)}</h2>
+      <div style="font-size:0.84rem">보고서 <span class="pill ${filled === 6 ? 'ok' : filled ? 'warn' : 'no'}">${filled}/6칸</span>
+        개인 기여 <span class="pill ${Object.keys(cc).length === g.members.length ? 'ok' : 'warn'}">${Object.keys(cc).length}/${g.members.length}</span>
+        포스터 ${po ? `<a href="${LAB.escAttr(po.link)}" target="_blank" class="pill ok">🎨 ${E(po.title || '보기')} ↗</a>` : '<span class="pill no">아직</span>'}</div>
+      <details style="margin-top:8px;font-size:0.84rem"><summary>보고서 펼쳐 보기</summary>
+        ${Object.keys(SEC_NAMES).map(k => `<div class="rep-sec"><b>${SEC_NAMES[k]} ${rp[k] ? `<span class="dc-muted">${E(rp[k].byName)} ${LAB.fmtTime(rp[k].at)}</span>` : ''}</b>${rp[k] ? LAB.nl2br(rp[k].text) : '<span class="dc-muted">–</span>'}</div>`).join('')}
+        <div class="rep-sec"><b>🙋 개인 기여</b>${g.members.map(m => `<div>${E(m.name)}: ${cc[m.id] ? E(cc[m.id].text) : '<span class="dc-muted">–</span>'}</div>`).join('')}</div></details>
+      <div class="btn-row" style="margin-top:8px"><a class="btn small ghost" target="_blank" href="s4-report.html${sv(ban, g.id)}">학생 화면 보기</a></div></div>`;
+  }).join('');
+}
+
+LAB.start({ needLogin: false, title: '교사용 관리', subtitle: '' }).then(async () => {
+  LAB.student = { id: 'admin', name: '교사', isTeacher: true };
+  let ok = false; try { ok = sessionStorage.getItem('last26Admin') === '1'; } catch (e) {}
+  if (LAB.DEMO) { ok = true; try { await LAB.ensureDemo(); } catch (e) {} } // 체험판은 비밀번호 없이
+  if (ok) open();
+});
+</script>
+</body>
+</html>

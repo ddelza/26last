@@ -23,9 +23,11 @@
 // 설문 답 = 객관식 { sel:[보기 번호...], etc:'기타 내용' } / 주관식 '문자열'
 (function () {
   var DB_URL = 'https://gwangsu-on-default-rtdb.firebaseio.com';
-  var ROOT = 'last26';
+  // 체험판: /demo/ 폴더 페이지는 실제 데이터와 완전히 분리된 last26demo 를 쓰고, 학생 명단도 가짜 이름을 쓴다.
+  var DEMO = /\/demo\//.test(location.pathname);
+  var ROOT = DEMO ? 'last26demo' : 'last26';
   var TEACHER_BAN = 'T';
-  var LAB = window.LAB = { DB_URL: DB_URL, ROOT: ROOT, cfg: null, student: null };
+  var LAB = window.LAB = { DB_URL: DB_URL, ROOT: ROOT, DEMO: DEMO, cfg: null, student: null };
 
   // ★ 프로젝트 이름(가칭) — 여기만 바꾸면 모든 페이지 제목이 바뀐다
   LAB.NAME = '물음표에서 느낌표로';
@@ -144,7 +146,7 @@
   // ---------- 반 ----------
   LAB.myBan = function () {
     var s = LAB.student;
-    if (s.isTeacher) return LAB.qs('ban') || TEACHER_BAN; // 교사는 ?ban=3-2 로 그 반 학생 화면을 볼 수 있다
+    if (s.isTeacher) return LAB.qs('ban') || (DEMO ? '3-1' : TEACHER_BAN); // 교사는 ?ban=3-2 로 그 반 학생 화면을 볼 수 있다
     return s.grade + '-' + s.ban;
   };
   LAB.TEACHER_BAN = TEACHER_BAN;
@@ -152,6 +154,7 @@
   LAB.banShort = function (b) { if (b === TEACHER_BAN) return '교사'; var p = String(b).split('-'); return p.length === 2 ? p[0] + '-' + p[1] + '반' : b; };
   var rosterP = null;
   LAB.roster = function () {
+    if (DEMO) return Promise.resolve(LAB.fakeRoster());
     if (!rosterP) rosterP = fetch(DB_URL + '/years/' + LAB.cfg.year + '/students.json').then(function (r) { return r.json(); }).then(function (d) { return d || {}; });
     return rosterP;
   };
@@ -163,6 +166,22 @@
     });
   };
   LAB.BANS = ['3-1', '3-2', '3-3', '3-4', '3-5'];
+  // 체험판용 가짜 명단: 1~3학년 × 5반 × 25명, 학번마다 늘 같은 이름
+  var fakeR = null;
+  LAB.fakeName = function (id) {
+    var F = '김이박최정강조윤장임한오서신권황안송류홍전고문양손배백허남심노하곽성차주우구민유나진지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용';
+    var G1 = '서민지하준도윤수현예우시주유은채건태연소다승아재정나영가세동혜경진성원희';
+    var G2 = '준연윤우진아은서민현호빈원희영수린율하후';
+    var h = 0, s = String(id); for (var i = 0; i < s.length; i++) h = (h * 131 + s.charCodeAt(i) * 7 + 13) % 1000003;
+    return F.charAt(h % 40) + G1.charAt((h >> 3) % G1.length) + G2.charAt((h >> 7) % G2.length);
+  };
+  LAB.fakeRoster = function () {
+    if (fakeR) return fakeR; fakeR = {};
+    for (var g = 1; g <= 3; g++) for (var b = 1; b <= 5; b++) for (var n = 1; n <= 25; n++) {
+      var id = '' + g + b + (n < 10 ? '0' : '') + n; fakeR[id] = { grade: g, ban: b, num: n, name: LAB.fakeName(id) };
+    }
+    return fakeR;
+  };
 
   // ---------- 모둠 ----------
   // 모둠 = 교사가 고른 문제(제안자 학번). 모둠원 = 제안자(고정) + 선착순 신청자(서버 시각 순)
@@ -222,7 +241,7 @@
   LAB.teacherPickerHtml = function (ban, data, g) {
     if (!LAB.student.isTeacher) return '';
     return '<div class="t-bar">👩‍🏫 교사 보기 · <select onchange="location.search=\'?ban=\'+this.value">' +
-      ['T'].concat(LAB.BANS).map(function (b) { return '<option value="' + b + '"' + (b === ban ? ' selected' : '') + '>' + LAB.banLabel(b) + '</option>'; }).join('') +
+      (DEMO ? [] : ['T']).concat(LAB.BANS).map(function (b) { return '<option value="' + b + '"' + (b === ban ? ' selected' : '') + '>' + LAB.banLabel(b) + '</option>'; }).join('') +
       '</select>' + (data && data.groups.length ? ' <select onchange="location.search=\'?ban=' + ban + '&g=\'+this.value">' +
         data.groups.map(function (x) { return '<option value="' + x.id + '"' + (g && x.id === g.id ? ' selected' : '') + '>' + x.no + '모둠</option>'; }).join('') + '</select>' : '') + '</div>';
   };
@@ -242,6 +261,7 @@
       var head = document.getElementById('lab-head');
       var st = opts.stage ? LAB.STAGES[opts.stage - 1] : null;
       if (st) document.documentElement.style.setProperty('--stage', st.color), document.documentElement.style.setProperty('--stage-soft', st.soft);
+      if (DEMO && !document.getElementById('demo-ribbon')) document.body.insertAdjacentHTML('afterbegin', '<div id="demo-ribbon" class="demo-ribbon">🧪 <b>체험판</b> · 실제 학생 데이터와 분리돼 있고, 학생 이름은 모두 가짜예요. 마음껏 눌러 보세요!</div>');
       if (head) {
         head.innerHTML =
           '<div class="topline"><a href="index.html">' + LAB.ICON + ' ' + LAB.esc(LAB.NAME) + '</a>' +

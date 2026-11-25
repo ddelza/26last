@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>모둠 정하기</title>
+<link rel="stylesheet" href="../common.css?v=3">
+<style>
+/* ⚠️ 버튼 위치 고정 — 학생들이 "티켓팅"하듯 손을 올려 두고 누른다(cell-genetics 2026-10-20 피드백).
+   상태가 바뀌어도 위쪽 높이가 변하지 않게: 안내 띠는 겹쳐 두고 visibility만, 내 모둠 상자·칸 높이 고정. */
+.status-stack { display: grid; margin-bottom: 12px; }
+.status-stack > .status { grid-area: 1 / 1; border-radius: 12px; padding: 12px 14px; font-size: 0.88rem; line-height: 1.6; text-align: center; display: flex; flex-direction: column; justify-content: center; }
+.status.off { visibility: hidden; }
+.status.wait { background: #fff4e6; border: 1.5px solid #ffc078; color: #a85d00; }
+.status.open { background: #ebfbee; border: 1.5px solid #8ce99a; color: #2b8a3e; }
+.status.closed { background: #f1f3f5; border: 1.5px solid #ced4da; color: #495057; }
+.mine-box { display: flex; align-items: center; gap: 10px; background: var(--stage); color: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; font-weight: 800; border: 1.5px solid var(--stage); min-height: 64px; }
+.mine-box.none { background: #fff; color: var(--text-muted); border-style: dashed; border-color: var(--border); font-weight: 400; }
+.mine-box .txt { flex: 1; min-width: 0; }
+.mine-box .txt div, .mine-box small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.mine-box small { font-weight: 400; opacity: .9; }
+.mine-box button { flex: none; padding: 7px 10px; border-radius: 9px; border: 1.5px solid #fff; background: transparent; color: #fff; font-weight: 800; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
+.mine-box button.hide { visibility: hidden; }
+.topic { display: grid; grid-template-columns: 54px 1fr 108px; gap: 10px; align-items: center; background: #fff; border-radius: 14px; padding: 12px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06); border: 2px solid transparent; }
+.topic.mine { border-color: var(--stage); background: #fffaf5; }
+.topic.full:not(.mine) { opacity: .6; }
+.topic .no { text-align: center; font-weight: 900; color: var(--stage); font-size: 0.95rem; line-height: 1.2; }
+.topic .no small { display: block; font-size: 1.3rem; }
+.topic .mid { min-width: 0; }
+.topic .t { font-weight: 800; font-size: 0.92rem; line-height: 1.35; height: 2.7em; overflow: hidden; }
+.topic .mem { font-size: 0.76rem; color: #555; height: 1.5em; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; margin-top: 2px; }
+.topic .mem .me { font-weight: 900; color: var(--stage); }
+.topic .right { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.topic .cnt { text-align: center; font-weight: 800; font-size: 0.8rem; color: var(--ok); }
+.topic.full .cnt { color: var(--danger); }
+.topic button { white-space: nowrap; padding: 9px 4px; border: none; border-radius: 9px; background: var(--stage); color: #fff; font-weight: 800; font-size: 0.84rem; cursor: pointer; font-family: inherit; }
+.topic button:disabled { background: #ced4da; cursor: default; }
+.more { font-size: 0.8rem; margin-top: 18px; }
+.more details { background: #fff; border-radius: 12px; padding: 10px 14px; margin-bottom: 8px; }
+@media (max-width: 440px) { .topic { grid-template-columns: 40px 1fr 92px; gap: 8px; padding: 10px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div class="card" style="font-size:0.86rem;line-height:1.7">
+    <b>🧩 이렇게 정해요</b>
+    <ul>
+      <li>선생님이 우리 반에서 <b>공감을 많이 받은 문제 5개</b>를 골랐어요. 하나를 골라 신청하면 그게 <b>내 모둠</b>이에요.</li>
+      <li>모둠마다 <b>최대 5명</b>, <b>선착순</b>이에요. (📌 문제를 낸 친구도 5명 안에 들어가요)</li>
+      <li>📌 <b>뽑힌 문제를 낸 사람</b>은 자기 문제 모둠에 <b>자동으로 고정</b>돼요. 다른 모둠은 신청할 수 없어요.</li>
+      <li>선생님이 마감하기 전에는 옮기거나 취소할 수 있어요. 대신 내 자리는 다른 친구가 가져갈 수 있어요.</li>
+    </ul>
+  </div>
+  <div id="status"></div>
+  <div id="mine"></div>
+  <div id="grid"><div class="loading-state">불러오는 중...</div></div>
+  <div class="more" id="more"></div>
+</div>
+
+<script src="../session.js?v=1"></script>
+<script src="../lab.js?v=5"></script>
+<script src="../demo-seed.js?v=1"></script>
+<script>
+let ban, D = null, busy = false;
+const me = () => LAB.student.id;
+
+async function load() { D = await LAB.loadGroups(ban); paint(); }
+function paint() {
+  const conf = D.conf, cap = D.cap, my = LAB.groupOf(D, me()), proposer = D.groups.some(g => g.author === me());
+  const mode = !D.groups.length ? 'wait' : conf.open ? 'open' : 'closed';
+  document.getElementById('status').innerHTML = '<div class="status-stack">' +
+    `<div class="status open${mode === 'open' ? '' : ' off'}"><div>🟢 <b>지금 신청할 수 있어요!</b> 모둠마다 <b>${cap}명</b> · 선착순</div></div>` +
+    `<div class="status closed${mode === 'closed' ? '' : ' off'}"><div>${D.picks && Object.keys(D.picks).length ? '🔒 <b>신청이 마감되었어요.</b> 모둠이 정해졌어요!' : '⏳ <b>문제 5개가 정해졌어요.</b> 선생님이 시작하면 바로 신청할 수 있어요. (새로고침 안 해도 돼요)'}</div></div>` +
+    `<div class="status wait${mode === 'wait' ? '' : ' off'}"><div>⏳ <b>아직 모둠 주제가 정해지지 않았어요.</b><br>게시판에서 친구들 문제에 공감을 더 나눠 볼까요? → <a href="s1-board.html">게시판 가기</a></div></div></div>`;
+
+  document.getElementById('mine').innerHTML = my
+    ? `<div class="mine-box"><div class="txt"><div>${proposer ? '📌 ' : ''}내 모둠: ${my.no}모둠 · ${LAB.esc(my.title)}</div><small>${my.members.map(m => LAB.esc(m.name)).join(', ')}</small></div>` +
+      `<button data-cancel="1" class="${conf.open && !proposer ? '' : 'hide'}" ${busy || !conf.open || proposer ? 'disabled' : ''}>신청 취소</button></div>`
+    : `<div class="mine-box none"><div class="txt"><div>내 모둠: 아직 없음</div><small>신청하면 여기에 표시돼요</small></div><button class="hide" disabled>신청 취소</button></div>`;
+
+  document.getElementById('grid').innerHTML = D.groups.map(g => {
+    const c = LAB.cat(g.cat), mine = my && my.id === g.id, full = g.members.length >= cap;
+    let btn;
+    if (mine) btn = `<button disabled>${proposer ? '📌 고정' : '✓ 내 모둠'}</button>`;
+    else if (proposer) btn = '<button disabled>신청 불가</button>';
+    else btn = `<button data-topic="${g.id}" ${!conf.open || full || busy ? 'disabled' : ''}>${full ? '마감' : my ? '옮기기' : '신청하기'}</button>`;
+    return `<div class="topic${mine ? ' mine' : ''}${full ? ' full' : ''}">
+      <div class="no"><small>${c.icon}</small>${g.no}모둠</div>
+      <div class="mid"><div class="t">${LAB.esc(g.title)}</div>
+        <div class="mem">${g.members.map(m => `<span class="${m.id === me() ? 'me' : ''}">${m.proposer ? '📌' : ''}${LAB.esc(m.name || '')}</span>`).join(', ')}</div></div>
+      <div class="right"><div class="cnt">${g.members.length} / ${cap}</div>${btn}</div></div>`;
+  }).join('');
+
+  document.getElementById('more').innerHTML = D.groups.length ? '<b>📖 문제 자세히 보기</b>' + D.groups.map(g =>
+    `<details><summary>${g.no}모둠 · ${LAB.esc(g.title)}</summary><div style="margin-top:6px;line-height:1.65">${LAB.nl2br(g.story || '')}${g.who ? '<br><br><b>왜 함께?</b> ' + LAB.nl2br(g.who) : ''}<div class="dc-muted" style="margin-top:4px">📌 제안: ${LAB.esc(g.members[0].name || '')}</div></div></details>`).join('') : '';
+}
+
+async function choose(tid) {
+  if (busy) return;
+  const prev = D.picks[me()];
+  if (prev && prev.topic === tid) return;
+  const g = D.groups.find(x => x.id === tid);
+  if (prev && !confirm(`지금 모둠을 놓고\n${g.no}모둠(${g.title})으로 옮길까요?\n\n옮기면 원래 자리는 다른 친구가 가져갈 수 있어요.`)) return;
+  busy = true; paint();
+  try {
+    await load();
+    if (!D.conf.open) return alert('신청이 마감되었어요.');
+    const g2 = D.groups.find(x => x.id === tid);
+    if (!g2 || g2.members.length >= D.cap) return alert('아쉽게도 그 모둠은 방금 마감되었어요. 다른 모둠을 골라 주세요.');
+    const path = `pick/${ban}/${me()}`;
+    await LAB.put(path, { topic: tid, name: LAB.student.name, num: LAB.student.num || 0, ts: LAB.TS });
+    // 서버 시각 순으로 내 순번 확인 — 정원 밖이면(동시에 누른 친구가 더 빨랐으면) 되돌린다
+    const D2 = await LAB.loadGroups(ban);
+    const rank = D2.groups.find(x => x.id === tid).members.findIndex(m => m.id === me());
+    if (rank >= D2.cap) {
+      if (prev) await LAB.put(path, prev); else await LAB.del(path);
+      alert('아쉽게도 한발 늦었어요! 그 사이 자리가 찼어요.' + (prev ? '\n원래 모둠은 그대로예요.' : '\n다른 모둠을 골라 주세요.'));
+    }
+  } catch (e) { alert('저장하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'); }
+  finally { busy = false; await load(); }
+}
+async function cancelPick() {
+  if (busy || !D.picks[me()]) return;
+  if (!confirm('신청을 취소할까요?\n취소하면 이 자리는 다른 친구가 가져갈 수 있어요.')) return;
+  busy = true; paint();
+  try { await load(); if (!D.conf.open) return alert('마감되어 취소할 수 없어요. 선생님께 말씀드려요.'); await LAB.del(`pick/${ban}/${me()}`); }
+  catch (e) { alert('취소하지 못했어요. 다시 눌러 주세요.'); }
+  finally { busy = false; await load(); }
+}
+document.getElementById('mine').addEventListener('click', e => { if (e.target.closest('[data-cancel]')) cancelPick(); });
+document.getElementById('grid').addEventListener('click', e => { const b = e.target.closest('button[data-topic]'); if (b) choose(b.dataset.topic); });
+
+LAB.start({ stage: 1, title: '모둠 정하기', subtitle: '공감을 많이 받은 문제 5개 중 하나를 골라 선착순으로 신청해요.' }).then(async () => {
+  ban = LAB.myBan();
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban));
+  await load();
+  const live = LAB.listen(`pick/${ban}`, () => { if (!busy) load(); });
+  setInterval(() => { if (!document.hidden && !busy) load(); }, live ? 10000 : 2500);
+});
+</script>
+</body>
+</html>

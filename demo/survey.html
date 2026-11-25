@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>광수에게 묻다 — 전교생 설문</title>
+<link rel="stylesheet" href="../common.css?v=3">
+<style>
+.prog { position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
+.prog-bar { height: 10px; background: #dee2e6; border-radius: 999px; overflow: hidden; }
+.prog-fill { height: 100%; background: var(--stage); transition: width .3s; }
+.prog-t { display: flex; justify-content: space-between; font-size: 0.78rem; color: #555; margin-top: 4px; font-weight: 700; }
+.qcard { background: #fff; border-radius: 18px; padding: 20px 18px; box-shadow: 0 2px 8px rgba(0,0,0,.06); min-height: 300px; }
+.qno { font-size: 0.78rem; font-weight: 900; color: var(--stage); }
+.prob { background: #f1f3f5; border-radius: 12px; padding: 10px 12px; font-size: 0.84rem; margin: 8px 0 10px; }
+.prob b { display: block; font-size: 0.92rem; }
+.prob img { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
+.prob .note { margin-top: 6px; line-height: 1.6; }
+.qtext { font-size: 1.12rem; font-weight: 800; line-height: 1.5; margin: 8px 0 4px; }
+.qmeta { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 12px; }
+.opts { display: flex; flex-direction: column; gap: 8px; }
+.opt { display: flex; align-items: center; gap: 10px; border: 2px solid #e9ecef; border-radius: 12px; padding: 12px 14px; cursor: pointer; font-size: 0.95rem; }
+.opt:has(input:checked) { border-color: var(--stage); background: var(--stage-soft); font-weight: 800; }
+.opt input { width: 20px; height: 20px; accent-color: var(--stage); flex: none; }
+.etc-in { margin-top: 6px; }
+.nav { display: flex; gap: 8px; margin-top: 14px; }
+.nav .btn { margin-top: 0; }
+.nav .prev { flex: 0 0 90px; }
+.saved-dot { text-align: center; font-size: 0.74rem; color: var(--text-muted); margin-top: 8px; min-height: 1.2em; }
+.big-msg { text-align: center; padding: 30px 16px; }
+.big-msg .e { font-size: 3rem; }
+.big-msg h2 { margin: 8px 0; }
+.left-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+.left-list button { border: 1.5px solid #ffc9c9; background: #fff; color: var(--danger); border-radius: 8px; padding: 4px 10px; cursor: pointer; font-family: inherit; font-weight: 700; }
+.jump { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 14px; justify-content: center; }
+.jump button { width: 30px; height: 30px; border-radius: 8px; border: 1.5px solid #dee2e6; background: #fff; font-size: 0.74rem; cursor: pointer; font-family: inherit; }
+.jump button.done { background: var(--stage-soft); border-color: var(--stage); color: var(--stage); font-weight: 800; }
+.jump button.cur { background: var(--stage); color: #fff; border-color: var(--stage); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="../session.js?v=1"></script>
+<script src="../lab.js?v=5"></script>
+<script src="../demo-seed.js?v=1"></script>
+<script>
+let items = [], ans = {}, done = false, cur = -1, imgs = {}, preview = false, me;
+const S = LAB.STAGES[2];
+
+function answered(i) { return LAB.isAnswered(items[i].q, ans[items[i].key]); }
+function nDone() { return items.filter((_, i) => answered(i)).length; }
+
+let saveT = null, pending = {};
+function queueSave(key, val, now) {
+  if (preview) return;
+  pending[key] = val === undefined ? null : val;
+  clearTimeout(saveT);
+  const go = () => {
+    const p = pending; pending = {};
+    const body = { grade: LAB.student.grade, ban: LAB.student.ban, updatedAt: LAB.TS };
+    Object.keys(p).forEach(k => body['answers/' + k] = p[k]);
+    setDot('저장 중...');
+    LAB.patch(`resp/${me}`, body).then(() => setDot('☁️ 저장됨')).catch(() => { Object.assign(pending, p); setDot('⚠️ 저장 실패 — 인터넷을 확인해요'); });
+  };
+  if (now) go(); else saveT = setTimeout(go, 1200);
+}
+function flush() { if (Object.keys(pending).length) { clearTimeout(saveT); queueSave(Object.keys(pending)[0], pending[Object.keys(pending)[0]], true); } }
+function setDot(t) { const d = document.getElementById('dot'); if (d) d.textContent = t; }
+
+function intro() {
+  const n = nDone();
+  document.getElementById('main').innerHTML = `<div class="qcard big-msg">
+    <div class="e">📡</div><h2>3학년 선배들의 질문 ${items.length}개</h2>
+    <p style="line-height:1.8;font-size:0.92rem">3학년이 우리 삶의 진짜 문제를 풀려고 만든 질문이에요.<br>
+    여러분의 대답이 모여 <b>문제를 해결할 데이터</b>가 돼요.</p>
+    <div class="tip" style="text-align:left">✔️ <b>이름은 선배들에게 보이지 않아요.</b> 학년만 함께 기록돼요.<br>✔️ 정답은 없어요. <b>솔직하게</b> 답해 주세요.<br>✔️ 잘 모르겠으면 <b>건너뛰어도</b> 괜찮아요.<br>✔️ 답을 고르면 바로 저장돼요. 중간에 나가도 이어서 할 수 있어요.</div>
+    ${preview ? '<div class="error-msg show">👩‍🏫 교사 미리보기 — 답이 저장되지 않아요.</div>' : ''}
+    <button class="btn" onclick="go(${n && n < items.length ? Math.max(0, items.findIndex((_, i) => !answered(i))) : 0})">${n ? `이어서 하기 (${n}/${items.length})` : '시작하기 →'}</button>
+  </div>`;
+}
+window.go = function (i) {
+  flush();
+  if (i >= items.length) return finish();
+  cur = Math.max(0, i);
+  const it = items[cur], q = it.q, o = it.out, a = ans[it.key];
+  const showProb = o.show === 'problem' || o.show === 'full';
+  let body = '';
+  if (q.type === 'choice') {
+    const sel = (a && a.sel) || [];
+    body = '<div class="opts">' + q.options.map((op, j) => `<label class="opt"><input type="${q.multi ? 'checkbox' : 'radio'}" name="a" value="${j}" ${sel.includes(j) ? 'checked' : ''}><span>${LAB.esc(op)}</span></label>`).join('') +
+      (q.etc ? `<label class="opt"><input type="${q.multi ? 'checkbox' : 'radio'}" name="a" value="etc" ${a && a.etc ? 'checked' : ''}><span>기타 (직접 쓰기)</span></label>
+        <input type="text" class="etc-in" id="etc" placeholder="기타 — 직접 써 주세요" maxlength="150" value="${LAB.escAttr((a && a.etc) || '')}" style="display:${a && a.etc !== undefined && a.etc !== null && a.etc !== '' ? 'block' : 'none'}">` : '') + '</div>';
+  } else {
+    body = `<textarea id="open" rows="4" maxlength="500" placeholder="자유롭게 써 주세요">${LAB.esc(a || '')}</textarea>`;
+  }
+  document.getElementById('main').innerHTML = `
+    <div class="prog"><div class="prog-bar"><div class="prog-fill" style="width:${nDone() / items.length * 100}%"></div></div>
+      <div class="prog-t"><span>${cur + 1}번째 질문 / 전체 ${items.length}개</span><span>답한 질문 ${nDone()}개</span></div></div>
+    <div class="qcard">
+      <div class="qno">Q${cur + 1}${preview ? ` · ${LAB.esc(LAB.banShort(it.ban))} ${o.no}모둠` : ''}</div>
+      ${showProb ? `<div class="prob">📌 3학년 선배들이 고민하는 문제<b>${LAB.esc(o.title)}</b>${o.show === 'full' && imgs[it.ban] && imgs[it.ban][it.g] ? `<img src="${imgs[it.ban][it.g]}" alt="">` : ''}${o.show === 'full' && o.note ? `<div class="note">${LAB.nl2br(o.note)}</div>` : ''}</div>` : ''}
+      <div class="qtext">${LAB.nl2br(q.q)}</div>
+      <div class="qmeta">${q.type === 'choice' ? (q.multi ? '☑️ 여러 개 골라도 돼요' : '🔘 하나만 골라요') : '✍️ 직접 써 주세요'}</div>
+      ${body}
+    </div>
+    <div class="nav"><button class="btn ghost prev" onclick="go(${cur - 1})" ${cur === 0 ? 'disabled' : ''}>← 이전</button>
+      <button class="btn" id="next" onclick="go(${cur + 1})">${cur === items.length - 1 ? '마지막 확인 →' : '다음 →'}</button></div>
+    <div class="saved-dot" id="dot"></div>
+    <div class="jump">${items.map((_, i) => `<button class="${i === cur ? 'cur' : answered(i) ? 'done' : ''}" onclick="go(${i})">${i + 1}</button>`).join('')}</div>`;
+  updNext();
+  const main = document.getElementById('main');
+  main.querySelectorAll('input[name=a]').forEach(inp => inp.onchange = () => {
+    const vals = [...main.querySelectorAll('input[name=a]:checked')].map(x => x.value);
+    const etcBox = document.getElementById('etc');
+    if (etcBox) { etcBox.style.display = vals.includes('etc') ? 'block' : 'none'; if (vals.includes('etc') && !q.multi) {} }
+    const v = { sel: vals.filter(x => x !== 'etc').map(Number) };
+    if (vals.includes('etc')) { v.etc = etcBox.value.trim() || ' '; if (!etcBox.value.trim()) etcBox.focus(); }
+    ans[it.key] = v; queueSave(it.key, v, true); updNext(); paintJump();
+  });
+  const etc = document.getElementById('etc');
+  if (etc) etc.oninput = () => { const v = Object.assign({}, ans[it.key] || { sel: [] }, { etc: etc.value.trim() || ' ' }); ans[it.key] = v; queueSave(it.key, v); };
+  const op = document.getElementById('open');
+  if (op) op.oninput = () => { ans[it.key] = op.value.trim(); queueSave(it.key, op.value.trim()); updNext(); paintJump(); };
+};
+function updNext() { const b = document.getElementById('next'); if (b && cur < items.length - 1) b.textContent = answered(cur) ? '다음 →' : '건너뛰기 →'; }
+function paintJump() { document.querySelectorAll('.jump button').forEach((b, i) => b.className = i === cur ? 'cur' : answered(i) ? 'done' : ''); }
+
+function finish() {
+  flush();
+  const left = items.map((_, i) => i).filter(i => !answered(i));
+  document.getElementById('main').innerHTML = `<div class="qcard big-msg">
+    <div class="e">${left.length ? '🧐' : '🎉'}</div><h2>${items.length}개 중 ${items.length - left.length}개에 답했어요</h2>
+    ${left.length ? `<p>아직 답하지 않은 질문이 있어요. 눌러서 답할 수 있어요. (건너뛰어도 괜찮아요)</p><div class="left-list">${left.map(i => `<button onclick="go(${i})">Q${i + 1}</button>`).join('')}</div>` : '<p>모든 질문에 답해 주었어요. 고마워요!</p>'}
+    <button class="btn" onclick="submitAll()">✅ 설문 제출하기</button>
+    <button class="btn ghost" onclick="go(0)">처음부터 다시 보기</button></div>`;
+}
+window.submitAll = async function () {
+  if (!preview) { try { await LAB.patch(`resp/${me}`, { done: true, grade: LAB.student.grade, ban: LAB.student.ban, updatedAt: LAB.TS }); } catch (e) { return alert('제출하지 못했어요. 인터넷 연결을 확인하고 다시 눌러 주세요.'); } }
+  done = true;
+  document.getElementById('main').innerHTML = `<div class="qcard big-msg"><div class="e">💚</div><h2>제출 완료! 고마워요</h2>
+    <p style="line-height:1.8">여러분의 답이 3학년 선배들의 해결 방안이 돼요.<br>곧 학교 곳곳에 붙을 <b>포스터</b>에서 결과를 확인해 보세요!</p>
+    <p class="dc-muted">설문이 열려 있는 동안에는 다시 들어와 답을 고칠 수 있어요.</p>
+    <button class="btn ghost" onclick="go(0)">내 답 다시 보기</button><a class="btn secondary" href="index.html">처음 화면으로</a></div>`;
+};
+
+LAB.start({ stage: 3, title: '광수에게 묻다', subtitle: '3학년 선배들이 만든 질문에 답하는 전교생 설문이에요.' }).then(async () => {
+  me = LAB.student.id; preview = !!LAB.student.isTeacher;
+  const [sc, fin] = await Promise.all([LAB.get('survey/_config'), LAB.get('final')]);
+  items = LAB.surveyItems(fin, preview && LAB.qs('test') === '1');
+  if (!preview && !(sc && sc.open)) {
+    document.getElementById('main').innerHTML = `<div class="qcard big-msg"><div class="e">⏳</div><h2>아직 설문이 열리지 않았어요</h2><p>선생님이 설문을 열면 여기서 참여할 수 있어요.<br>지금 준비된 질문: <b>${items.length}개</b></p><a class="btn secondary" href="index.html">처음 화면으로</a></div>`;
+    return;
+  }
+  if (!items.length) { document.getElementById('main').innerHTML = '<div class="empty-state">아직 설문에 나온 질문이 없어요.</div>'; return; }
+  if (!preview) { const r = await LAB.get(`resp/${me}`); ans = (r && r.answers) || {}; done = !!(r && r.done); }
+  if (items.some(x => x.out.hasImg && x.out.show === 'full')) LAB.get('img').then(d => { imgs = d || {}; if (cur >= 0) go(cur); }).catch(() => {});
+  intro();
+  window.addEventListener('beforeunload', flush);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });
+});
+</script>
+</body>
+</html>

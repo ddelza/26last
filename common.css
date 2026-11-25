@@ -124,3 +124,7 @@ details summary { cursor: pointer; font-weight: 700; }
   .bar-row .bar-lab { grid-column: 1 / -1; }
   .page-title { font-size: 1.2rem; }
 }
+
+/* 체험판 띠 */
+.demo-ribbon { background: #212529; color: #ffe066; font-size: 0.78rem; text-align: center; padding: 7px 12px; line-height: 1.5; }
+.demo-ribbon b { color: #fff; }

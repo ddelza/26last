@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>교사용 관리</title>
-<link rel="stylesheet" href="common.css?v=2">
+<link rel="stylesheet" href="common.css?v=3">
 <style>
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
 .tabs button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; cursor: pointer; font-family: inherit; font-size: 0.84rem; }
@@ -27,6 +27,7 @@ table.t tr.sel td { background: #fff9db; }
 @keyframes blink { 50% { opacity: .35; } }
 .pick-log { background: #f8f9fa; border-radius: 12px; padding: 8px 12px; margin-top: 10px; font-size: 0.8rem; max-height: 180px; overflow-y: auto; line-height: 1.7; }
 .pick-log .h { font-weight: 800; margin-bottom: 2px; }
+.demo-reset { margin-left: 6px; border: 1.5px dashed #adb5bd; background: #fff; border-radius: 10px; padding: 6px 10px; font-size: 0.78rem; cursor: pointer; font-family: inherit; }
 .mem button { border: none; background: none; color: #adb5bd; cursor: pointer; padding: 0 2px; }
 .switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; border: 1.5px solid #e9ecef; border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; }
 .switch b { display: block; } .switch small { color: var(--text-muted); }
@@ -65,12 +66,13 @@ td.no { background: #fff0f0; color: #e03131; font-weight: 800; } td.na { color: 
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=4"></script>
+<script src="lab.js?v=5"></script>
 <script>
 const PASSWORD = 'byung0703!';
 const TABS = [['t0', '📋 학급 현황'], ['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
 let tab = 't0', ban = '3-1', sel = [];
 try { tab = localStorage.getItem('last26AdminTab') || 't0'; ban = localStorage.getItem('last26AdminBan') || '3-1'; } catch (e) {}
+if (LAB.DEMO && ban === 'T') ban = '3-1';
 const E = LAB.esc;
 
 window.checkPw = function () {
@@ -86,9 +88,17 @@ function open() {
 }
 function paintTabs() {
   document.getElementById('tabs').innerHTML = TABS.map(t => `<button data-tab="${t[0]}" class="${tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('') +
-    `<select id="banSel">${LAB.BANS.concat(['T']).map(b => `<option value="${b}" ${b === ban ? 'selected' : ''}>${LAB.banLabel(b)}</option>`).join('')}</select>`;
+    `<select id="banSel">${LAB.BANS.concat(LAB.DEMO ? [] : ['T']).map(b => `<option value="${b}" ${b === ban ? 'selected' : ''}>${LAB.banLabel(b)}</option>`).join('')}</select>` +
+    (LAB.DEMO ? '<button id="demoReset" class="demo-reset" title="모든 선생님이 함께 쓰는 체험 데이터를 처음 상태로">🔄 체험 데이터 처음으로</button>' : '');
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; save(); paintTabs(); show(); });
   document.getElementById('banSel').onchange = e => { ban = e.target.value; sel = []; save(); show(); };
+  const rb = document.getElementById('demoReset');
+  if (rb) rb.onclick = async () => {
+    if (!confirm('체험 데이터를 처음 상태로 되돌릴까요?\n\n다른 선생님들도 같은 체험판을 쓰고 있어서, 지금까지 누가 바꾼 내용도 모두 처음으로 돌아가요. (실제 학생 데이터와는 상관없어요)')) return;
+    rb.disabled = true; rb.textContent = '되돌리는 중...';
+    try { await LAB.resetDemo(); sel = []; } catch (e) { alert('되돌리지 못했어요. 다시 눌러 주세요.'); }
+    paintTabs(); show();
+  };
 }
 function save() { try { localStorage.setItem('last26AdminTab', tab); localStorage.setItem('last26AdminBan', ban); } catch (e) {} }
 function show() { stopPickLive(); pickState = null; document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; ({ t0, t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
@@ -339,9 +349,10 @@ async function t4() {
   }).join('');
 }
 
-LAB.start({ needLogin: false, title: '교사용 관리', subtitle: '' }).then(() => {
+LAB.start({ needLogin: false, title: '교사용 관리', subtitle: '' }).then(async () => {
   LAB.student = { id: 'admin', name: '교사', isTeacher: true };
   let ok = false; try { ok = sessionStorage.getItem('last26Admin') === '1'; } catch (e) {}
+  if (LAB.DEMO) { ok = true; try { await LAB.ensureDemo(); } catch (e) {} } // 체험판은 비밀번호 없이
   if (ok) open();
 });
 </script>
