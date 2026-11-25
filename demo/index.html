@@ -31,6 +31,10 @@
 .stage-links a { display: flex; justify-content: space-between; align-items: center; gap: 8px; text-decoration: none; background: var(--s); color: var(--c); font-weight: 800; font-size: 0.9rem; border-radius: 12px; padding: 12px 14px; }
 .stage-links a .st { font-size: 0.72rem; font-weight: 700; background: #fff; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
 .stage-links a .st.done { background: var(--c); color: #fff; }
+.t-login .or { display: flex; align-items: center; gap: 8px; margin: 18px 0 10px; color: var(--text-muted); font-size: 0.78rem; }
+.t-login .or::before, .t-login .or::after { content: ''; flex: 1; border-top: 1px solid #dee2e6; }
+.g-btn { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; background: #fff; border: 1.5px solid #dadce0; border-radius: 12px; padding: 12px 16px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.92rem; }
+.g-btn:disabled { opacity: .6; }
 .foot { text-align: center; margin-top: 26px; font-size: 0.76rem; }
 .foot a { color: var(--text-muted); }
 </style>
@@ -67,6 +71,12 @@
       <input type="text" id="inputName" placeholder="홍길동">
       <div class="error-msg" id="loginError"></div>
       <button class="btn" id="loginBtn" onclick="onLogin()" style="background:var(--accent)">입장하기</button>
+      <div class="t-login" id="tLogin">
+        <div class="or"><span>선생님이신가요?</span></div>
+        <button class="g-btn" id="gBtn" type="button"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.7 13.3l7.9 6.1C12.5 13.6 17.8 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.6 5.9c4.4-4.1 7-10.1 7-17.6z"/><path fill="#FBBC05" d="M10.6 28.6A14.6 14.6 0 0 1 9.5 24c0-1.6.3-3.2.8-4.6l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.7l8-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.6-5.9c-2.1 1.4-4.9 2.3-8.3 2.3-6.2 0-11.5-4.2-13.4-9.9l-8 6.1C6.6 42.6 14.6 48 24 48z"/></svg><span id="gLabel">교사 구글 계정으로 입장</span></button>
+        <div class="error-msg" id="gErr"></div>
+        <p class="hint" style="margin:6px 0 0;text-align:center">광수중 교사 계정이면 모든 반·모둠 화면을 볼 수 있는 <b>교사 권한</b>으로 들어가요.</p>
+      </div>
     </div>
   </div>
 
@@ -90,8 +100,9 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=6"></script>
+<script src="../lab.js?v=7"></script>
 <script src="../demo-seed.js?v=2"></script>
+<script src="../help-teachers.js?v=1"></script>
 <script>
 const DB_URL = LAB.DB_URL;
 const TEACHER_ID = '3000', TEACHER_NAME = '김병선';
@@ -116,7 +127,7 @@ window.onLogin = async function () {
   const btn = document.getElementById('loginBtn'); btn.disabled = true; btn.textContent = '확인 중...';
   try {
     const cfg = await loadCfg();
-    if (id === TEACHER_ID && name === TEACHER_NAME) { const t = { id, name, isTeacher: true }; setSrStudent(t); return enter(t); }
+    if (id === TEACHER_ID && name === TEACHER_NAME) { const t = { id, name, isTeacher: true, gkey: 'fd7cbd5e2c08584de05a' }; setSrStudent(t); return enter(t); }
     const rec = await fetch(`${DB_URL}/years/${cfg.year}/students/${id}.json`).then(r => r.json());
     if (!rec || String(rec.name).trim() !== name) return setErr('학번 또는 이름이 맞지 않아요. 다시 확인해 주세요.');
     const s = { id, name: rec.name, grade: rec.grade, ban: rec.ban, num: rec.num };
@@ -124,7 +135,7 @@ window.onLogin = async function () {
   } catch (e) { setErr(e.message || '잠시 후 다시 시도해 주세요.'); }
   finally { btn.disabled = false; btn.textContent = '입장하기'; }
 };
-window.onLogout = function () { clearSrStudent(); setErr(''); document.getElementById('inputId').value = ''; document.getElementById('inputName').value = ''; showStep('step-login'); };
+window.onLogout = function () { if (window.GLOGIN) GLOGIN.logout().catch(() => {}); clearSrStudent(); setErr(''); document.getElementById('inputId').value = ''; document.getElementById('inputName').value = ''; showStep('step-login'); };
 
 async function enter(s) {
   LAB.student = s;
@@ -168,6 +179,28 @@ function renderStages(st) {
 }
 document.getElementById('inputId').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('inputName').focus(); } });
 document.getElementById('inputName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); onLogin(); } });
+// ---------- 교사 구글 로그인 → 3000 계정과 같은 교사 권한 ----------
+const gErr = m => { const e = document.getElementById('gErr'); e.textContent = m || ''; e.classList.toggle('show', !!m); };
+const gReset = () => { document.getElementById('gBtn').disabled = false; document.getElementById('gLabel').textContent = '교사 구글 계정으로 입장'; };
+document.getElementById('gBtn').onclick = async () => {
+  if (!window.GLOGIN) return gErr('로그인 준비 중이에요. 잠시 뒤 다시 눌러 주세요.');
+  gErr(''); document.getElementById('gBtn').disabled = true; document.getElementById('gLabel').textContent = '로그인 중...';
+  try { sessionStorage.setItem('last26GWant', '1'); } catch (e) {}
+  const ok = await GLOGIN.login(); if (!ok) gReset();
+};
+function hookGoogle() {
+  GLOGIN.onUser(async email => {
+    let want = false; try { want = sessionStorage.getItem('last26GWant') === '1'; sessionStorage.removeItem('last26GWant'); } catch (e) {}
+    if (!want) return; // 이전에 로그인해 둔 구글 계정으로 저절로 들어가지 않게 — 버튼을 눌렀을 때만
+    const t = await GLOGIN.teacherOf(email);
+    if (!t) { await GLOGIN.logout(); gReset(); return gErr(`${email} 은(는) 광수중 교사 계정 명단에 없어요. 학생은 위에 학번과 이름으로 들어와요.`); }
+    if (!LAB.cfg) await loadCfg();
+    const s = { id: 'T' + t.key.slice(0, 8), name: t.name, isTeacher: true, gkey: t.key, via: 'google' };
+    setSrStudent(s); gReset(); enter(s);
+  });
+}
+if (window.GLOGIN) hookGoogle(); else window.addEventListener('glogin-ready', hookGoogle, { once: true });
+
 // ---------- 체험판 (demo/ 폴더) ----------
 function demoSetup() {
   document.getElementById('loginCard').style.display = 'none';
@@ -213,5 +246,6 @@ function demoSetup() {
   } catch (e) { setErr('불러오기 실패 — 새로고침해 주세요.'); }
 })();
 </script>
+<script type="module">if (!/\/demo\//.test(location.pathname)) import('./google-login.js');</script>
 </body>
 </html>

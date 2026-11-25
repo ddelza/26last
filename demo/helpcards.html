@@ -16,7 +16,7 @@
 .filters .lab { width: 100%; font-size: 0.78rem; font-weight: 800; color: #495057; margin-top: 4px; }
 .filters button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 0.8rem; cursor: pointer; font-family: inherit; }
 .filters button.on { background: var(--stage); border-color: var(--stage); color: #fff; font-weight: 800; }
-.hc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.hc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap: 12px; }
 .hc { background: #fff; border-radius: 16px; border: 1.5px solid #e9ecef; border-top: 6px solid var(--stage); padding: 14px 16px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
 .hc.mine { border-color: var(--stage); }
 .hc .nm { font-size: 1.08rem; font-weight: 900; }
@@ -26,6 +26,14 @@
 .hc .tag.g { background: #e6fcf5; color: #087f5b; }
 .hc ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.88rem; line-height: 1.65; }
 .hc .meta { font-size: 0.7rem; color: var(--text-muted); margin-top: 8px; }
+.search { display: flex; align-items: center; gap: 6px; border: 2px solid var(--stage); border-radius: 12px; padding: 4px 6px 4px 12px; background: #fff; }
+.search input { flex: 1; border: none; outline: none; font-size: 0.95rem; padding: 8px 0; font-family: inherit; background: none; min-width: 0; }
+.search button { border: none; background: #f1f3f5; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; color: #868e96; }
+.filters.quick button { border-style: dashed; }
+.result-bar { display: flex; justify-content: space-between; align-items: center; margin: 4px 2px 10px; font-size: 0.84rem; color: #495057; }
+.result-bar b { color: var(--stage); }
+.result-bar button { border: none; background: none; color: var(--text-muted); text-decoration: underline; cursor: pointer; font-family: inherit; font-size: 0.8rem; }
+.hc mark { background: #ffec99; color: inherit; border-radius: 3px; padding: 0 1px; }
 .edit-box .checks { display: flex; flex-wrap: wrap; gap: 6px; }
 .g-btn { display: inline-flex; align-items: center; gap: 8px; background: #fff; border: 1.5px solid #dadce0; border-radius: 10px; padding: 10px 16px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 0.9rem; }
 .g-btn:disabled { opacity: .6; }
@@ -45,9 +53,12 @@
   </div>
 
   <div class="card">
+    <div class="search"><span>🔍</span><input type="search" id="q" placeholder="무엇이 필요해요? 예) 설문 정리, 그래프, 발표, AI, 선생님 이름" autocomplete="off"><button id="qClear" title="지우기">✕</button></div>
+    <div class="filters" id="fQuick"></div>
     <div class="filters" id="fGrade"></div>
     <div class="filters" id="fSubj"></div>
   </div>
+  <div class="result-bar"><span id="count"></span><button id="reset">↺ 조건 모두 지우기</button></div>
   <div id="cards"><div class="loading-state">불러오는 중...</div></div>
 
   <div class="card edit-box" id="editCard" style="margin-top:16px">
@@ -57,14 +68,16 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=6"></script>
+<script src="../lab.js?v=7"></script>
 <script src="../demo-seed.js?v=2"></script>
 <script src="../help-teachers.js?v=1"></script>
 <script>
 const SUBJECTS = ['국어', '영어', '수학', '사회', '역사', '도덕', '과학', '기술·가정', '정보', '체육', '음악', '미술', '한문', '진로', '특수', '보건', '영양', '상담', '도서관', '그 밖의 것'];
 const GRADES = ['1', '2', '3'];
 const E = LAB.esc;
-let cards = {}, fGrade = '', fSubj = '', meKey = null, meInfo = null;
+let cards = {}, fGrade = '', fSubj = '', fq = '', meKey = null, meInfo = null;
+// 학생들이 자주 찾을 만한 도움 — 누르면 검색창에 들어가요
+const QUICK = ['설문 정리', '그래프', '과학적 근거', 'AI', '발표', '포스터', '토론', '인터뷰', '글쓰기', '디자인'];
 
 const sha = async s => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s.trim().toLowerCase())))).map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 20);
 
@@ -74,26 +87,53 @@ function chips(el, list, cur, label, onPick) {
   el.querySelectorAll('button').forEach(b => b.onclick = () => onPick(b.dataset.v));
 }
 function renderFilters() {
+  chips(document.getElementById('fQuick'), QUICK, fq, '💡 자주 찾는 도움', v => { setQ(v === fq ? '' : v); });
+  document.getElementById('fQuick').classList.add('quick');
+  document.querySelector('#fQuick button[data-v=""]').remove();
   chips(document.getElementById('fGrade'), GRADES.map(g => g + '학년'), fGrade && fGrade + '학년', '🎒 도움 받을 학년', v => { fGrade = v.replace('학년', ''); renderAll(); });
   const used = SUBJECTS.filter(s => Object.values(cards).some(c => (c.subjects || []).includes(s)));
   chips(document.getElementById('fSubj'), used, fSubj, '📚 과목', v => { fSubj = v; renderAll(); });
 }
+// 검색어(띄어쓰기로 나눈 낱말 모두 포함) — 이름·과목·도움 내용에서 찾음
+const words = () => fq.trim().toLowerCase().split(/\s+/).filter(Boolean);
+const hay = c => [c.name, c.role, (c.subjects || []).join(' '), (c.grades || []).map(g => g + '학년').join(' '), (c.items || []).join(' ')].join(' ').toLowerCase().replace(/\s+/g, '');
+const hit = c => { const h = hay(c); return words().every(w => h.includes(w)); };
+function hl(t) {
+  t = String(t || ''); const ws = words(); if (!ws.length) return E(t);
+  const low = t.toLowerCase(), on = new Array(t.length).fill(false);
+  ws.forEach(w => { for (let i = low.indexOf(w); i >= 0; i = low.indexOf(w, i + 1)) for (let j = i; j < i + w.length; j++) on[j] = true; });
+  let out = '', open = false;
+  for (let i = 0; i < t.length; i++) {
+    if (on[i] !== open) { out += on[i] ? '<mark>' : '</mark>'; open = on[i]; }
+    out += E(t[i]);
+  }
+  return out + (open ? '</mark>' : '');
+}
+function setQ(v) { fq = v; document.getElementById('q').value = v; renderAll(); }
 function cardHtml(k, c) {
-  return `<div class="hc${k === meKey ? ' mine' : ''}"><div class="nm">${E(c.name)} 선생님<small>${E(c.role || '')}</small></div>
-    <div class="tags">${(c.subjects || []).map(s => `<span class="tag">${E(s)}</span>`).join('')}${(c.grades || []).map(g => `<span class="tag g">${g}학년</span>`).join('')}</div>
+  return `<div class="hc${k === meKey ? ' mine' : ''}"><div class="nm">${hl(c.name)} 선생님<small>${hl(c.role || '')}</small></div>
+    <div class="tags">${(c.subjects || []).map(s => `<span class="tag">${hl(s)}</span>`).join('')}${(c.grades || []).map(g => `<span class="tag g">${g}학년</span>`).join('')}</div>
     <div style="font-size:0.78rem;font-weight:800;color:#495057">🙌 이런 걸 도와줄 수 있어요</div>
-    <ul>${(c.items || []).map(t => `<li>${E(t)}</li>`).join('')}</ul>
+    <ul>${(c.items || []).map(t => `<li>${hl(t)}</li>`).join('')}</ul>
     <div class="meta">${c.updatedAt ? LAB.fmtTime(c.updatedAt) + ' 고침' : ''}</div></div>`;
 }
-function renderAll() {
-  renderFilters();
+function renderAll() { renderFilters(); renderCards(); }
+function renderCards() {
   const ks = Object.keys(cards).filter(k => {
     const c = cards[k];
-    return (!fGrade || (c.grades || []).includes(fGrade)) && (!fSubj || (c.subjects || []).includes(fSubj));
+    return (!fGrade || (c.grades || []).includes(fGrade)) && (!fSubj || (c.subjects || []).includes(fSubj)) && hit(c);
   }).sort((a, b) => (cards[a].name || '').localeCompare(cards[b].name || '', 'ko'));
   document.getElementById('cards').innerHTML = ks.length ? `<div class="hc-grid">${ks.map(k => cardHtml(k, cards[k])).join('')}</div>`
-    : `<div class="empty-state">${Object.keys(cards).length ? '조건에 맞는 카드가 없어요. 위에서 "전체"를 눌러 보세요.' : '아직 등록된 도움카드가 없어요.'}</div>`;
+    : `<div class="empty-state">${Object.keys(cards).length ? '조건에 맞는 카드가 없어요. 검색어를 바꾸거나 "조건 모두 지우기"를 눌러 보세요.' : '아직 등록된 도움카드가 없어요.'}</div>`;
+  const on = fq.trim() || fGrade || fSubj;
+  document.getElementById('count').innerHTML = `도움카드 <b>${ks.length}</b>장${on ? ` <span class="dc-muted">/ 전체 ${Object.keys(cards).length}장</span>` : ''}`;
+  document.getElementById('reset').style.visibility = on ? 'visible' : 'hidden';
 }
+// 검색창: 카드 목록만 다시 그려서 한글 입력이 끊기지 않게
+document.getElementById('q').addEventListener('input', e => { fq = e.target.value; renderCards();
+  document.querySelectorAll('#fQuick button').forEach(b => b.classList.toggle('on', b.dataset.v === fq)); });
+document.getElementById('qClear').onclick = () => setQ('');
+document.getElementById('reset').onclick = () => { fGrade = ''; fSubj = ''; setQ(''); };
 async function loadCards() { cards = (await LAB.get('helpcards')) || {}; renderAll(); }
 
 // ---------- 선생님 편집 ----------
@@ -107,7 +147,7 @@ function loginView(msg) {
 function editView() {
   const c = cards[meKey] || {}, subs = c.subjects || (meInfo.sub && SUBJECTS.includes(meInfo.sub) ? [meInfo.sub] : []), grs = c.grades || [];
   document.getElementById('editBody').innerHTML = `
-    <div class="who-line"><span>✓ ${E(meInfo.name)} 선생님${LAB.DEMO ? ' (체험판)' : ''}</span>${LAB.DEMO ? '' : '<button id="gOut">로그아웃</button>'}</div>
+    <div class="who-line"><span>✓ ${E(meInfo.name)} 선생님${LAB.DEMO ? ' (체험판)' : ''}</span>${LAB.DEMO || meInfo.viaSession ? '' : '<button id="gOut">로그아웃</button>'}</div>
     <label class="field-label">과목 <span class="dc-muted">(여러 개 골라도 돼요)</span></label>
     <div class="checks">${SUBJECTS.map(s => `<label class="chip"><input type="checkbox" name="sub" value="${s}" ${subs.includes(s) ? 'checked' : ''}><span>${s}</span></label>`).join('')}</div>
     <label class="field-label">도움 줄 학년</label>
@@ -155,7 +195,12 @@ LAB.start({ needLogin: false, title: '교사 도움카드', subtitle: '막히면
     meKey = k; meInfo = { name: (s && s.isTeacher && s.name) || '체험', sub: '' };
     document.querySelector('#editCard h2').insertAdjacentHTML('afterend', '<p class="hint">🧪 체험판에서는 구글 로그인 없이 써 볼 수 있어요. (실제 사이트에서는 교사 구글 계정 로그인이 필요해요)</p>');
     editView();
-  } else if (!meKey) loginView('');
+  } else {
+    // 첫 화면에서 교사로 들어왔으면(교사 구글 계정 또는 3000 계정) 다시 로그인하지 않아도 됨
+    const s = getSrStudent(), t = s && s.isTeacher && s.gkey && (window.HELP_TEACHERS || {})[s.gkey];
+    if (t && !meKey) { meKey = s.gkey; meInfo = { name: t[0], sub: t[1], viaSession: true }; renderAll(); editView(); }
+    else if (!meKey) loginView('');
+  }
 });
 </script>
 <!-- gwangsu-on Firebase Google 로그인 (26-2status·sr-exhibition과 같은 설정) -->
