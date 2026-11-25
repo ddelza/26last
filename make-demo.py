@@ -8,8 +8,8 @@ for f in glob.glob(os.path.join(out, '*.html')): os.remove(f)
 n = 0
 for src in sorted(glob.glob(os.path.join(here, '*.html'))):
     s = open(src, encoding='utf-8').read()
-    s = s.replace('href="common.css', 'href="../common.css').replace('src="session.js', 'src="../session.js')
-    s, k = re.subn(r'<script src="lab\.js(\?v=\d+)?"></script>', lambda m: '<script src="../lab.js%s"></script>\n<script src="../demo-seed.js?v=1"></script>' % (m.group(1) or ''), s)
+    s = s.replace('href="common.css', 'href="../common.css').replace('src="session.js', 'src="../session.js').replace('src="help-teachers.js', 'src="../help-teachers.js')
+    s, k = re.subn(r'<script src="lab\.js(\?v=\d+)?"></script>', lambda m: '<script src="../lab.js%s"></script>\n<script src="../demo-seed.js?v=2"></script>' % (m.group(1) or ''), s)
     assert k == 1, src
     s = s.replace('<head>', '<head>\n<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->\n<meta name="robots" content="noindex">', 1)
     open(os.path.join(out, os.path.basename(src)), 'w', encoding='utf-8', newline='\n').write(s); n += 1

@@ -107,6 +107,10 @@
   LAB.seedDemo = function () {
     var tree = { problems: {}, likes: {}, comments: {}, pick: {}, q: {}, final: {}, report: {}, contrib: {}, poster: {}, resp: {},
       survey: { _config: { open: true, results: true } }, _seeded: Date.now() };
+    // 교사 도움카드 예시 (실제 사이트와 같은 김병선 선생님 카드)
+    tree.helpcards = { fd7cbd5e2c08584de05a: { name: '김병선', role: '과학', subjects: ['과학'], grades: ['3'], updatedAt: Date.now(), items: [
+      '문제를 해결하는 데 필요한 과학적 근거 검증 및 보충', 'AI 활용한 웹 앱 발표자료 제작', 'AI를 활용한 설문 결과 데이터 정리 (주관식, 객관식 모두 포함)',
+      '그외 고오급 AI의 도움이 필요한 모든 것들에 도움 제공 가능', '미래 사회, AI, 기술 관련된 논제 무한 토론 가능'] } };
 
     // ----- 3-1: 끝까지 -----
     var k31 = board(tree, '3-1', P31, function (i) { return [14, 12, 11, 10, 9][i] || Math.max(0, 7 - i * 0.6); });

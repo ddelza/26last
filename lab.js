@@ -477,4 +477,16 @@
       fr.readAsDataURL(file);
     });
   };
+
+  // ---------- 🙋 교사 도움카드 버튼 (모든 페이지 오른쪽 위에 따라다님) ----------
+  function addHelpBtn() {
+    if (/helpcards\.html$/.test(location.pathname) || document.getElementById('help-fab')) return;
+    var a = document.createElement('a');
+    a.id = 'help-fab'; a.className = 'help-fab'; a.href = 'helpcards.html';
+    a.innerHTML = '🙋 <span>교사 도움카드</span>';
+    a.title = '막히면 찾아가요 — 선생님들이 도와줄 수 있는 것';
+    document.body.appendChild(a);
+    document.body.classList.add('has-help-fab');
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addHelpBtn); else addHelpBtn();
 })();

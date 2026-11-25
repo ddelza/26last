@@ -128,3 +128,12 @@ details summary { cursor: pointer; font-weight: 700; }
 /* 체험판 띠 */
 .demo-ribbon { background: #212529; color: #ffe066; font-size: 0.78rem; text-align: center; padding: 7px 12px; line-height: 1.5; }
 .demo-ribbon b { color: #fff; }
+
+/* 🙋 교사 도움카드 버튼 — 스크롤해도 오른쪽 위에 붙어 다님 */
+.help-fab { position: fixed; top: 10px; right: 10px; z-index: 900; display: inline-flex; align-items: center; gap: 4px;
+  background: #7048e8; color: #fff; text-decoration: none; font-weight: 800; font-size: 0.8rem; border-radius: 999px; padding: 8px 13px;
+  box-shadow: 0 3px 10px rgba(112,72,232,.35); }
+.help-fab:hover { background: #5f3dc4; }
+body.has-help-fab .topline { padding-right: 132px; }
+body.has-help-fab .demo-ribbon { padding-right: 140px; }
+@media (max-width: 520px) { .help-fab { top: 8px; right: 8px; padding: 6px 10px; font-size: 0.72rem; } body.has-help-fab .topline { padding-right: 112px; } body.has-help-fab .demo-ribbon { padding-right: 118px; text-align: left; } }
