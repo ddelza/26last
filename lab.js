@@ -488,5 +488,21 @@
     document.body.appendChild(a);
     document.body.classList.add('has-help-fab');
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addHelpBtn); else addHelpBtn();
+  // ---------- ⚙️ 교사용 관리 페이지 버튼 (모든 페이지 아래쪽에 따라다님) ----------
+  // 로그인 전 화면이거나 교사로 로그인했을 때만 보인다(학생 화면에는 숨김). 관리 페이지 자체는 비밀번호로 막혀 있다.
+  function syncAdminBtn() {
+    if (/admin\.html$/.test(location.pathname)) return;
+    var s = null; try { s = window.getSrStudent ? getSrStudent() : null; } catch (e) {}
+    var show = !s || !!s.isTeacher, a = document.getElementById('admin-fab');
+    if (!a) {
+      a = document.createElement('a');
+      a.id = 'admin-fab'; a.className = 'admin-fab'; a.href = 'admin.html';
+      a.innerHTML = '⚙️ <span>교사용 관리 페이지</span>';
+      document.body.appendChild(a);
+    }
+    a.style.display = show ? '' : 'none';
+    document.body.classList.toggle('has-admin-fab', show);
+  }
+  function addFabs() { addHelpBtn(); syncAdminBtn(); setInterval(syncAdminBtn, 1500); } // 같은 화면에서 로그인/로그아웃해도 따라 바뀌게
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addFabs); else addFabs();
 })();

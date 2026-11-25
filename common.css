@@ -136,4 +136,11 @@ details summary { cursor: pointer; font-weight: 700; }
 .help-fab:hover { background: #5f3dc4; }
 body.has-help-fab .topline { padding-right: 132px; }
 body.has-help-fab .demo-ribbon { padding-right: 140px; }
-@media (max-width: 520px) { .help-fab { top: 8px; right: 8px; padding: 6px 10px; font-size: 0.72rem; } body.has-help-fab .topline { padding-right: 112px; } body.has-help-fab .demo-ribbon { padding-right: 118px; text-align: left; } }
+/* ⚙️ 교사용 관리 페이지 버튼 — 스크롤해도 아래쪽 가운데에 붙어 다님 */
+.admin-fab { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 900; display: inline-flex; align-items: center; gap: 5px;
+  background: #343a40; color: #fff; text-decoration: none; font-weight: 800; font-size: 0.82rem; border-radius: 999px; padding: 9px 16px;
+  box-shadow: 0 3px 12px rgba(0,0,0,.28); white-space: nowrap; }
+.admin-fab:hover { background: #212529; }
+body.has-admin-fab { padding-bottom: 64px; }
+@media print { .admin-fab, .help-fab { display: none !important; } }
+@media (max-width: 520px) { .admin-fab { bottom: 8px; padding: 7px 12px; font-size: 0.74rem; } .help-fab { top: 8px; right: 8px; padding: 6px 10px; font-size: 0.72rem; } body.has-help-fab .topline { padding-right: 112px; } body.has-help-fab .demo-ribbon { padding-right: 118px; text-align: left; } }
