@@ -19,7 +19,7 @@
 //   poster/{반}/{모둠}              = { link, title, by, byName, at }
 //   ({모둠} = 뽑힌 문제의 문제키 — cg/sr-exhibition의 topicId와 같은 발상. 제안자 = problems[문제키].id)
 //
-// 질문 형태 q = { q:'질문', type:'choice'|'open', options:['보기',...], multi:bool, etc:bool }
+// 질문 형태 q = { q:'질문', type:'choice'|'open', options:['보기',...], multi:bool, max:N(여러 개일 때 최대 개수, 없으면 모두), etc:bool }
 // 설문 답 = 객관식 { sel:[보기 번호...], etc:'기타 내용' } / 주관식 '문자열'
 (function () {
   var DB_URL = 'https://gwangsu-on-default-rtdb.firebaseio.com';
@@ -286,13 +286,13 @@
   function normQ(v) {
     v = v || {};
     return { q: v.q || '', type: v.type === 'open' ? 'open' : 'choice', options: (v.options && v.options.length ? v.options.slice() : ['', '']),
-      multi: !!v.multi, etc: !!v.etc, focus: LAB.FOCUS[v.focus] ? v.focus : '' };
+      multi: !!v.multi, max: Math.max(0, parseInt(v.max, 10) || 0), etc: !!v.etc, focus: LAB.FOCUS[v.focus] ? v.focus : '' };
   }
   LAB.cleanQ = function (v) {
     v = normQ(v);
     var o = { q: v.q.trim(), type: v.type };
     if (v.focus) o.focus = v.focus;
-    if (v.type === 'choice') { o.options = v.options.map(function (x) { return String(x || '').trim(); }).filter(Boolean); o.multi = v.multi; o.etc = v.etc; }
+    if (v.type === 'choice') { o.options = v.options.map(function (x) { return String(x || '').trim(); }).filter(Boolean); o.multi = v.multi; if (v.multi && v.max) o.max = v.max; o.etc = v.etc; }
     return o;
   };
   LAB.checkQ = function (v, needFocus) {
@@ -300,6 +300,7 @@
     if (needFocus && !v.focus) return '무엇을 알아보는 질문인지(①~④) 먼저 골라 주세요.';
     if (!v.q) return '질문을 써 주세요.';
     if (v.type === 'choice' && v.options.length < 2) return '객관식은 보기가 2개 이상 있어야 해요.';
+    if (v.type === 'choice' && v.max && v.max >= v.options.length + (v.etc ? 1 : 0)) return '고를 수 있는 개수가 보기 수와 같거나 많아요. "해당하는 것 모두 고르기"로 바꾸거나 개수를 줄여 주세요.';
     return '';
   };
   LAB.qEditor = function (root, val, opts) {
@@ -312,6 +313,7 @@
       var ops = root.querySelectorAll('.qe-opt input');
       if (ops.length) st.options = Array.prototype.map.call(ops, function (e) { return e.value; });
       var m = root.querySelector('.qe-multi'); if (m) st.multi = m.checked;
+      var mx = root.querySelector('.qe-max'); if (mx) st.max = parseInt(mx.value, 10) || 0;
       var e = root.querySelector('.qe-etc'); if (e) st.etc = e.checked;
       var f = root.querySelector('input[name="' + uid + 'f"]:checked'); if (f) st.focus = f.value;
     }
@@ -332,6 +334,12 @@
         }).join('') +
           (st.options.length < 8 ? '<button type="button" class="qe-add" data-add="1">＋ 보기 추가</button>' : '') + '</div>' +
           '<div class="qe-flags"><label><input type="checkbox" class="qe-multi"' + (st.multi ? ' checked' : '') + '> 여러 개 고를 수 있게</label>' +
+          (st.multi ? (function () {
+            var tot = st.options.length + (st.etc ? 1 : 0), o = '<option value="0"' + (!st.max ? ' selected' : '') + '>해당하는 것 모두 고르기</option>';
+            for (var k = 2; k < Math.max(tot, 3); k++) o += '<option value="' + k + '"' + (st.max === k ? ' selected' : '') + '>가장 가까운 것 최대 ' + k + '개까지</option>';
+            if (st.max && st.max >= Math.max(tot, 3)) o += '<option value="' + st.max + '" selected>최대 ' + st.max + '개 (보기 수보다 많아요)</option>';
+            return '<label class="qe-maxl">↳ 몇 개까지? <select class="qe-max">' + o + '</select></label>';
+          })() : '') +
           '<label><input type="checkbox" class="qe-etc"' + (st.etc ? ' checked' : '') + '> 맨 끝에 "기타(직접 쓰기)" 넣기</label></div>';
       } else {
         h += '<div class="hint" style="margin:6px 0 0">✍️ 응답자가 자유롭게 글로 답해요. 생생한 이유·경험을 모을 수 있지만, 숫자로 정리하기는 어려워요.</div>';
@@ -349,7 +357,7 @@
       if (opts.onInput) opts.onInput();
     });
     root.addEventListener('change', function (e) {
-      if (e.target.name === uid) { readDom(); draw(); }
+      if (e.target.name === uid || e.target.classList.contains('qe-multi') || e.target.classList.contains('qe-etc')) { readDom(); draw(); }
       if (e.target.name === uid + 'f') { readDom(); var ta = root.querySelector('.qe-q'); if (ta) ta.placeholder = LAB.FOCUS[st.focus].ex; }
       if (opts.onInput) opts.onInput();
     });
@@ -360,12 +368,13 @@
       set: function (v) { st = normQ(v); draw(); },
     };
   };
+  LAB.multiLabel = function (v) { return v.max ? '가장 가까운 것 최대 ' + v.max + '개' : '해당하는 것 모두 선택'; };
   // 질문 미리보기 (읽기 전용)
   LAB.qViewHtml = function (v, small) {
     if (!v || !v.q) return '<div class="dc-muted">(아직 없음)</div>';
     var h = '<div class="qv' + (small ? ' small' : '') + '">' + (v.focus ? '<span class="qv-focus">' + LAB.focusTag(v.focus) + '</span>' : '') + '<div class="qv-q">' + LAB.nl2br(v.q) + '</div>';
     if (v.type === 'choice') {
-      h += '<div class="qv-meta">☑️ 객관식' + (v.multi ? ' · 여러 개 선택' : '') + '</div><ol class="qv-opts">' +
+      h += '<div class="qv-meta">☑️ 객관식' + (v.multi ? ' · ' + LAB.multiLabel(v) : '') + '</div><ol class="qv-opts">' +
         (v.options || []).map(function (o) { return '<li>' + LAB.esc(o) + '</li>'; }).join('') + (v.etc ? '<li class="etc">기타(직접 쓰기)</li>' : '') + '</ol>';
     } else h += '<div class="qv-meta">✍️ 주관식</div>';
     return h + '</div>';

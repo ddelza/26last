@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>광수에게 묻다 — 전교생 설문</title>
-<link rel="stylesheet" href="../common.css?v=6">
+<link rel="stylesheet" href="../common.css?v=7">
 <style>
 .prog { position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
 .prog-bar { height: 10px; background: #dee2e6; border-radius: 999px; overflow: hidden; }
@@ -19,7 +19,8 @@
 .prob img { max-width: 100%; border-radius: 10px; margin-top: 8px; display: block; }
 .prob .note { margin-top: 6px; line-height: 1.6; }
 .qtext { font-size: 1.12rem; font-weight: 800; line-height: 1.5; margin: 8px 0 4px; }
-.qmeta { font-size: 0.74rem; color: var(--text-muted); margin-bottom: 12px; }
+.qmeta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; transition: color .2s; }
+.qmeta.over { color: #e03131; font-weight: 800; }
 .opts { display: flex; flex-direction: column; gap: 8px; }
 .opt { display: flex; align-items: center; gap: 10px; border: 2px solid #e9ecef; border-radius: 12px; padding: 12px 14px; cursor: pointer; font-size: 0.95rem; }
 .opt:has(input:checked) { border-color: var(--stage); background: var(--stage-soft); font-weight: 800; }
@@ -47,7 +48,7 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=10"></script>
+<script src="../lab.js?v=11"></script>
 <script src="../demo-seed.js?v=2"></script>
 <script>
 let items = [], ans = {}, done = false, cur = -1, imgs = {}, preview = false, me;
@@ -111,7 +112,7 @@ window.go = function (i) {
       <div class="qno">Q${cur + 1} · ${LAB.gradeOf(it.ban)}학년이 묻는 질문${preview ? ` · ${LAB.esc(LAB.banShort(it.ban))} ${o.no}모둠` : ''}</div>
       ${showProb ? `<div class="prob">📌 ${LAB.gradeOf(it.ban)}학년 모둠이 고민하는 문제<b>${LAB.esc(o.title)}</b>${exImg}${exNote}</div>` : (exImg || exNote ? `<div class="prob">📝 알아 두면 좋은 상황${exImg}${exNote}</div>` : '')}
       <div class="qtext">${LAB.nl2br(q.q)}</div>
-      <div class="qmeta">${q.type === 'choice' ? (q.multi ? '☑️ 여러 개 골라도 돼요' : '🔘 하나만 골라요') : '✍️ 직접 써 주세요'}</div>
+      <div class="qmeta">${q.type === 'choice' ? (q.multi ? (q.max ? `☑️ 가장 가까운 것을 <b>${q.max}개까지</b> 골라요` : '☑️ 해당하는 것을 <b>모두</b> 골라요') : '🔘 하나만 골라요') : '✍️ 직접 써 주세요'}</div>
       ${body}
     </div>
     <div class="nav"><button class="btn ghost prev" onclick="go(${cur - 1})" ${cur === 0 ? 'disabled' : ''}>← 이전</button>
@@ -121,6 +122,10 @@ window.go = function (i) {
   updNext();
   const main = document.getElementById('main');
   main.querySelectorAll('input[name=a]').forEach(inp => inp.onchange = () => {
+    if (q.multi && q.max && inp.checked && main.querySelectorAll('input[name=a]:checked').length > q.max) {
+      inp.checked = false; const mt = main.querySelector('.qmeta'); if (mt) { mt.classList.add('over'); setTimeout(() => mt.classList.remove('over'), 1200); }
+      return;
+    }
     const vals = [...main.querySelectorAll('input[name=a]:checked')].map(x => x.value);
     const etcBox = document.getElementById('etc');
     if (etcBox) { etcBox.style.display = vals.includes('etc') ? 'block' : 'none'; if (vals.includes('etc') && !q.multi) {} }
