@@ -55,7 +55,7 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=9"></script>
+<script src="../lab.js?v=10"></script>
 <script src="../demo-seed.js?v=2"></script>
 <script>
 let ban, G, me, members = [], drafts = {}, fin = {}, surveyCfg = {}, imgData = null, imgLoaded = false;
@@ -194,7 +194,7 @@ function renderOut() {
     <div class="which">${['survey', 'solution'].map(k => `<label class="chip ${has(k) ? '' : 'disabled'}"><span><input type="radio" name="which" value="${k}" ${o.which === k ? 'checked' : ''} ${has(k) ? '' : 'disabled'}> ${T[k].icon} ${T[k].name}</span>
       <small>${has(k) ? (fin[k].focus ? '[' + LAB.focusTag(fin[k].focus) + '] ' : '') + LAB.esc(fin[k].q) : '③에서 먼저 저장해요'}</small></label>`).join('')}</div>
     <label class="field-label" for="reason">왜 이 질문을 골랐나요? <span class="dc-muted">(모둠 토의 결과 — 보고서에도 쓰여요)</span></label>
-    <textarea id="reason" rows="3" placeholder="예) 우리 반에서는 다들 공감했지만 1·2학년도 그런지는 모른다. 해결책을 묻기 전에 문제가 얼마나 퍼져 있는지 먼저 확인하는 게 중요하다고 결정했다.">${LAB.esc(o.reason || '')}</textarea>
+    <textarea id="reason" rows="3" placeholder="예) 우리 반에서는 다들 공감했지만 다른 학년도 그런지는 모른다. 해결책을 묻기 전에 문제가 얼마나 퍼져 있는지 먼저 확인하는 게 중요하다고 결정했다.">${LAB.esc(o.reason || '')}</textarea>
     <label class="field-label">설문에서 어떻게 보여 줄까요?</label>
     <div class="shows">${Object.keys(LAB.SHOWS).map(k => `<label class="chip"><input type="radio" name="show" value="${k}" ${(o.show || 'q') === k ? 'checked' : ''}><span>${LAB.SHOWS[k].icon} <b>${LAB.SHOWS[k].name}</b><small>${LAB.SHOWS[k].desc}</small></span></label>`).join('')}</div>
     <div id="fullBox" style="display:none">

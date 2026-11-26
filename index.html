@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>물음표에서 느낌표로 · 광수중 3학년 학기말 프로젝트</title>
+<title>물음표에서 느낌표로 · 광수중 학기말 프로젝트</title>
 <link rel="stylesheet" href="common.css?v=6">
 <style>
 .step { display: none; } .step.active { display: block; }
@@ -42,7 +42,7 @@
   <div class="hero">
     <div class="big">❓ → ❗</div>
     <h1 id="pName">물음표에서 느낌표로</h1>
-    <p id="pSub">광수중 3학년 학기말 프로젝트</p>
+    <p id="pSub">광수중 학기말 프로젝트</p>
     <div class="kana">가칭이에요 · 이름은 언제든 바뀔 수 있어요</div>
   </div>
 
@@ -62,7 +62,7 @@
     <div class="card" id="demoCard" style="display:none"></div>
     <div class="card" id="loginCard">
       <h2>입장하기</h2>
-      <p class="hint">학번 4자리와 이름을 넣어요. 예) 3학년 1반 5번 → 3105<br>1·2학년도 설문 날에는 여기로 들어와요.</p>
+      <p class="hint">학번 4자리와 이름을 넣어요. 예) 2학년 1반 5번 → 2105</p>
       <label class="field-label" for="inputId">학번 (4자리)</label>
       <input type="tel" id="inputId" maxlength="4" inputmode="numeric" placeholder="3105">
       <label class="field-label" for="inputName">이름</label>
@@ -78,33 +78,23 @@
     </div>
   </div>
 
-  <!-- 3학년: 단계 지도 -->
+  <!-- 단계 지도 (1~3학년 모두) -->
   <div class="step" id="step-main">
     <div class="who"><span id="welcome"></span><button onclick="onLogout()">다른 사람으로</button></div>
     <div id="stages"></div>
   </div>
 
-  <!-- 1·2학년: 설문만 -->
-  <div class="step" id="step-survey">
-    <div class="who"><span id="welcome2"></span><button onclick="onLogout()">다른 사람으로</button></div>
-    <div class="card center">
-      <div style="font-size:2.4rem">📡</div>
-      <h2>3학년 선배들이 묻고 있어요!</h2>
-      <p class="hint" style="font-size:0.88rem">3학년 선배들이 우리 삶의 문제를 풀기 위해 질문 25개를 만들었어요.<br>여러분의 솔직한 대답 하나하나가 <b>진짜 데이터</b>가 돼요.<br>이름은 선배들에게 보이지 않아요.</p>
-      <a class="btn" href="survey.html" style="background:#0ca678">설문 시작하기 →</a>
-    </div>
-  </div>
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=9"></script>
+<script src="lab.js?v=10"></script>
 <script src="help-teachers.js?v=1"></script>
 <script>
 const DB_URL = LAB.DB_URL;
 const TEACHER_ID = '3000', TEACHER_NAME = '김병선';
 document.getElementById('pName').textContent = LAB.NAME;
 document.getElementById('pSub').textContent = LAB.SUB;
-document.title = LAB.NAME + ' · 광수중 3학년 학기말 프로젝트';
+document.title = LAB.NAME + ' · 광수중 학기말 프로젝트';
 
 function showStep(id) { document.querySelectorAll('.step').forEach(s => s.classList.toggle('active', s.id === id)); }
 function setErr(m) { const el = document.getElementById('loginError'); el.textContent = m || ''; el.classList.toggle('show', !!m); }
@@ -135,10 +125,6 @@ window.onLogout = function () { if (window.GLOGIN) GLOGIN.logout().catch(() => {
 
 async function enter(s) {
   LAB.student = s;
-  if (!s.isTeacher && String(s.grade) !== '3') {
-    document.getElementById('welcome2').textContent = '✓ ' + srWhoLabel(s);
-    return showStep('step-survey');
-  }
   document.getElementById('welcome').textContent = '✓ ' + srWhoLabel(s) + (s.isTeacher ? '' : '님');
   renderStages({});
   showStep('step-main');
@@ -209,14 +195,14 @@ function demoSetup() {
       <li><b>3학년 1반</b> — 4단계까지 진행된 모습 (모둠·질문·설문 결과·보고서·포스터)</li>
       <li><b>3학년 2반</b> — 모둠이 정해지고 질문을 만드는 중</li>
       <li><b>3학년 3반</b> — 문제 게시판만 (직접 주제 5개를 고르고 선착순을 열어 보세요)</li>
-      <li>3학년 4·5반 — 비어 있어요</li></ul></div>
+      <li>3학년 4·5반, 1·2학년 모든 반 — 비어 있어요 (직접 처음부터 해 보세요)</li></ul></div>
     <label class="field-label" for="dName">👩‍🏫 선생님으로 체험하기 <span class="dc-muted">(이름은 게시판 글·댓글에 보여요)</span></label>
     <input type="text" id="dName" placeholder="예) 김선생" maxlength="12">
     <button class="btn" id="dTeacher" style="background:#212529;margin-top:8px">👩‍🏫 교사 권한으로 들어가기</button>
     <a class="btn ghost" href="admin.html" style="margin-top:8px;display:block;text-align:center">⚙️ 교사용 관리 페이지 바로 가기 (비밀번호 없음)</a>
     <hr style="border:none;border-top:1px dashed #dee2e6;margin:16px 0">
     <label class="field-label">🎒 학생이 되어 체험하기 <span class="dc-muted">(가짜 학생 한 명으로 로그인)</span></label>
-    <div style="display:flex;gap:6px;flex-wrap:wrap"><select id="dGrade" style="width:auto"><option value="3">3학년</option><option value="2">2학년 (설문만)</option><option value="1">1학년 (설문만)</option></select>
+    <div style="display:flex;gap:6px;flex-wrap:wrap"><select id="dGrade" style="width:auto"><option value="3">3학년</option><option value="2">2학년</option><option value="1">1학년</option></select>
       <select id="dBan" style="width:auto">${[1, 2, 3, 4, 5].map(b => `<option value="${b}">${b}반</option>`).join('')}</select>
       <select id="dNum" style="width:auto">${nums}</select></div>
     <button class="btn" id="dStudent" style="margin-top:8px;background:var(--accent)">🎒 이 학생으로 들어가기</button>

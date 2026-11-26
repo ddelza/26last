@@ -28,7 +28,7 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=9"></script>
+<script src="../lab.js?v=10"></script>
 <script src="../demo-seed.js?v=2"></script>
 <script>
 let ban, G, me;
@@ -65,7 +65,7 @@ async function render() {
     ${p.link ? `<div class="saved-box"><div class="t">💾 저장된 포스터 (${LAB.esc(p.byName)} · ${LAB.fmtTime(p.at)})</div><a href="${LAB.escAttr(p.link)}" target="_blank" rel="noopener">${LAB.esc(p.title || p.link)} ↗</a></div>` : ''}
   </div>
 
-  <div class="step-h"><div class="n">🖼️</div><h2>3학년 포스터 전시관<span class="sub">다른 모둠은 어떻게 만들었을까?</span></h2></div>
+  <div class="step-h"><div class="n">🖼️</div><h2>광수중 포스터 전시관<span class="sub">다른 모둠은 어떻게 만들었을까?</span></h2></div>
   <div id="gal" class="gal"><div class="loading-state">불러오는 중...</div></div>`;
   document.getElementById('pSave').onclick = async () => {
     const err = document.getElementById('pErr'), ok = document.getElementById('pOk'); err.classList.remove('show'); ok.classList.remove('show');
