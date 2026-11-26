@@ -1,4 +1,4 @@
-# 물음표에서 느낌표로 (가칭) — 2026 광수중 3학년 학기말 프로젝트
+# 광수 HERO — 2026 광수중 1·2·3학년 학기말 프로젝트
 
 정적 사이트(GitHub Pages) + Firebase RTDB(gwangsu-on) REST. 빌드 없음. 데이터 경로·구조는 `lab.js` 맨 위 주석 참고.
 프로젝트 이름은 `lab.js`의 `LAB.NAME` / `LAB.SUB` 만 바꾸면 전체 반영.

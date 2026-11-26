@@ -30,9 +30,9 @@
   var LAB = window.LAB = { DB_URL: DB_URL, ROOT: ROOT, DEMO: DEMO, cfg: null, student: null };
 
   // ★ 프로젝트 이름(가칭) — 여기만 바꾸면 모든 페이지 제목이 바뀐다
-  LAB.NAME = '물음표에서 느낌표로';
-  LAB.SUB = '광수중 학기말 프로젝트 · 우리 삶의 문제, 우리가 푼다';
-  LAB.ICON = '❓❗';
+  LAB.NAME = '광수 HERO';
+  LAB.SUB = '이번엔 우리가 HERO · 데이터로 우리 학교의 진짜 문제를 찾고 바꿔요';
+  LAB.ICON = '🦸';
 
   LAB.STAGES = [
     { no: 1, icon: '🔍', name: '문제 찾기', color: '#f76707', soft: '#fff4e6',
