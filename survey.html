@@ -45,7 +45,7 @@
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=8"></script>
+<script src="lab.js?v=9"></script>
 <script>
 let items = [], ans = {}, done = false, cur = -1, imgs = {}, preview = false, me;
 const S = LAB.STAGES[2];
@@ -86,7 +86,8 @@ window.go = function (i) {
   if (i >= items.length) return finish();
   cur = Math.max(0, i);
   const it = items[cur], q = it.q, o = it.out, a = ans[it.key];
-  const showProb = o.show === 'problem' || o.show === 'full';
+  const showProb = LAB.showProb(o.show), showExtra = LAB.showExtra(o.show);
+  const exImg = showExtra && imgs[it.ban] && imgs[it.ban][it.g] ? `<img src="${imgs[it.ban][it.g]}" alt="">` : '', exNote = showExtra && o.note ? `<div class="note">${LAB.nl2br(o.note)}</div>` : '';
   let body = '';
   if (q.type === 'choice') {
     const sel = (a && a.sel) || [];
@@ -101,7 +102,7 @@ window.go = function (i) {
       <div class="prog-t"><span>${cur + 1}번째 질문 / 전체 ${items.length}개</span><span>답한 질문 ${nDone()}개</span></div></div>
     <div class="qcard">
       <div class="qno">Q${cur + 1}${preview ? ` · ${LAB.esc(LAB.banShort(it.ban))} ${o.no}모둠` : ''}</div>
-      ${showProb ? `<div class="prob">📌 3학년 선배들이 고민하는 문제<b>${LAB.esc(o.title)}</b>${o.show === 'full' && imgs[it.ban] && imgs[it.ban][it.g] ? `<img src="${imgs[it.ban][it.g]}" alt="">` : ''}${o.show === 'full' && o.note ? `<div class="note">${LAB.nl2br(o.note)}</div>` : ''}</div>` : ''}
+      ${showProb ? `<div class="prob">📌 3학년 선배들이 고민하는 문제<b>${LAB.esc(o.title)}</b>${exImg}${exNote}</div>` : (exImg || exNote ? `<div class="prob">📝 알아 두면 좋은 상황${exImg}${exNote}</div>` : '')}
       <div class="qtext">${LAB.nl2br(q.q)}</div>
       <div class="qmeta">${q.type === 'choice' ? (q.multi ? '☑️ 여러 개 골라도 돼요' : '🔘 하나만 골라요') : '✍️ 직접 써 주세요'}</div>
       ${body}
@@ -156,7 +157,7 @@ LAB.start({ stage: 3, title: '광수에게 묻다', subtitle: '3학년 선배들
   }
   if (!items.length) { document.getElementById('main').innerHTML = '<div class="empty-state">아직 설문에 나온 질문이 없어요.</div>'; return; }
   if (!preview) { const r = await LAB.get(`resp/${me}`); ans = (r && r.answers) || {}; done = !!(r && r.done); }
-  if (items.some(x => x.out.hasImg && x.out.show === 'full')) LAB.get('img').then(d => { imgs = d || {}; if (cur >= 0) go(cur); }).catch(() => {});
+  if (items.some(x => x.out.hasImg && LAB.showExtra(x.out.show))) LAB.get('img').then(d => { imgs = d || {}; if (cur >= 0) go(cur); }).catch(() => {});
   intro();
   window.addEventListener('beforeunload', flush);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flush(); });

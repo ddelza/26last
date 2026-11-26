@@ -89,9 +89,13 @@
   LAB.focusTag = function (id) { var f = LAB.FOCUS[id]; return f ? f.no + ' ' + f.name : ''; };
   LAB.SHOWS = {
     q: { icon: '❓', name: '질문만 보여 주기', desc: '응답자는 질문만 봐요. 문제를 미리 알려 주지 않아 솔직한 답을 받을 수 있어요.' },
+    note: { icon: '📝', name: '질문 + 보충 설명·사진', desc: '문제는 밝히지 않고 설명 글이나 사진만 붙여요. 상황은 알려 주되 답을 한쪽으로 이끌지 않아요.' },
     problem: { icon: '📌', name: '우리 문제 + 질문', desc: '우리 모둠이 고른 문제를 함께 보여 줘요. 왜 묻는지 알고 답할 수 있어요.' },
     full: { icon: '🖼️', name: '문제 + 질문 + 보충 설명·사진', desc: '설명 글이나 사진까지 붙여요. 상황을 잘 모르는 1·2학년도 이해하기 쉬워요.' },
   };
+
+  LAB.showProb = function (sh) { return sh === 'problem' || sh === 'full'; };   // 우리 문제를 보여 주는가
+  LAB.showExtra = function (sh) { return sh === 'full' || sh === 'note'; };     // 보충 설명·사진을 붙이는가
 
   // ---------- 유틸 ----------
   LAB.esc = function (s) { if (s === undefined || s === null) return ''; return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };

@@ -55,7 +55,7 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=8"></script>
+<script src="../lab.js?v=9"></script>
 <script src="../demo-seed.js?v=2"></script>
 <script>
 let ban, G, me, members = [], drafts = {}, fin = {}, surveyCfg = {}, imgData = null, imgLoaded = false;
@@ -66,8 +66,8 @@ const T = LAB.QTYPES;
 function surveyPreviewHtml(o, img) {
   const q = o.q || {};
   let h = '<div class="sv-card">';
-  if (o.show === 'problem' || o.show === 'full') h += `<div class="sv-prob">📌 ${LAB.esc(LAB.banLabel(ban))} ${G.no}모둠이 고민하는 문제<b>${LAB.esc(G.title)}</b></div>`;
-  if (o.show === 'full') {
+  if (LAB.showProb(o.show)) h += `<div class="sv-prob">📌 ${LAB.esc(LAB.banLabel(ban))} ${G.no}모둠이 고민하는 문제<b>${LAB.esc(G.title)}</b></div>`;
+  if (LAB.showExtra(o.show)) {
     if (img) h += `<img class="sv-img" src="${img}" alt="">`;
     if (o.note) h += `<div class="sv-note">${LAB.nl2br(o.note)}</div>`;
   }
@@ -180,7 +180,7 @@ function renderOut() {
   const box = document.getElementById('outBox'), o = fin.out || {};
   if (outLocked()) {
     box.innerHTML = `<div class="sent"><div class="big">🚀</div><b>설문에 내보냈어요!</b><div class="dc-muted">${LAB.esc(o.byName)} · ${LAB.fmtTime(o.at)} · ${T[o.which].icon} ${T[o.which].name}${o.q && o.q.focus ? ' (' + LAB.focusTag(o.q.focus) + ')' : ''} · ${LAB.SHOWS[o.show].name}</div></div>
-      <div class="preview"><div class="pv-h">👀 전교생에게 이렇게 보여요</div>${surveyPreviewHtml(o, o.show === 'full' ? imgData : null)}</div>
+      <div class="preview"><div class="pv-h">👀 전교생에게 이렇게 보여요</div>${surveyPreviewHtml(o, LAB.showExtra(o.show) ? imgData : null)}</div>
       <div class="saved-box"><div class="t">🗣️ 이 질문을 고른 이유</div>${LAB.nl2br(o.reason)}</div>
       ${surveyCfg.open ? '<p class="hint" style="margin-top:10px;text-align:center">설문이 이미 시작되어 고칠 수 없어요.</p>' : '<button class="btn danger" id="unsend">↩️ 내보내기 취소하고 다시 고치기</button>'}`;
     const u = document.getElementById('unsend'); if (u) u.onclick = unsend;
@@ -225,11 +225,11 @@ function readOut() {
 function renderOutPreview() {
   const pv = document.getElementById('pv'); if (!pv || outLocked()) return;
   const o = readOut();
-  document.getElementById('fullBox').style.display = o.show === 'full' ? 'block' : 'none';
+  document.getElementById('fullBox').style.display = LAB.showExtra(o.show) ? 'block' : 'none';
   document.getElementById('imgNow').innerHTML = imgData ? `<img src="${imgData}" style="max-width:160px;border-radius:8px"> <button class="btn small ghost" id="imgDel">사진 빼기</button>` : '';
   const d = document.getElementById('imgDel'); if (d) d.onclick = () => { imgData = null; document.getElementById('imgIn').value = ''; renderOutPreview(); };
   const q = o.which ? eds['fin_' + o.which].get() : null;
-  pv.innerHTML = q ? surveyPreviewHtml(Object.assign({}, o, { q }), o.show === 'full' ? imgData : null) : '<div class="dc-muted">위에서 내보낼 질문을 고르면 미리보기가 나와요.</div>';
+  pv.innerHTML = q ? surveyPreviewHtml(Object.assign({}, o, { q }), LAB.showExtra(o.show) ? imgData : null) : '<div class="dc-muted">위에서 내보낼 질문을 고르면 미리보기가 나와요.</div>';
 }
 async function saveOut(send) {
   const err = document.getElementById('outErr'), ok = document.getElementById('outOk'); err.classList.remove('show'); ok.classList.remove('show');
@@ -241,11 +241,11 @@ async function saveOut(send) {
     if (!fin[o.which] || JSON.stringify(LAB.cleanQ(fin[o.which])) !== JSON.stringify(cur)) return fail('③의 최종 질문에 저장하지 않은 고친 내용이 있어요. ③에서 먼저 저장해 주세요.');
     if (LAB.checkQ(cur)) return fail(LAB.checkQ(cur));
     if (o.reason.length < 10) return fail('왜 이 질문을 골랐는지 조금 더 자세히 써 주세요.');
-    if (o.show === 'full' && !o.note && !imgData) return fail('"보충 설명·사진"을 골랐다면 설명이나 사진을 하나 이상 넣어 주세요.');
+    if (LAB.showExtra(o.show) && !o.note && !imgData) return fail('"보충 설명·사진"을 골랐다면 설명이나 사진을 하나 이상 넣어 주세요.');
     if (!confirm('이 질문을 설문에 내보낼까요?\n모둠원과 충분히 토의했는지 한 번 더 확인해요!')) return;
   }
   if (send && surveyCfg.open) return fail('설문이 이미 시작되었어요. 선생님께 말씀드려요.');
-  const rec = Object.assign(o, { q: o.which ? LAB.cleanQ(fin[o.which]) : null, no: G.no, title: G.title, hasImg: o.show === 'full' && !!imgData,
+  const rec = Object.assign(o, { q: o.which ? LAB.cleanQ(fin[o.which]) : null, no: G.no, title: G.title, hasImg: LAB.showExtra(o.show) && !!imgData,
     submitted: !!send, by: me, byName: LAB.student.name, at: Date.now() });
   try {
     if (rec.hasImg) await LAB.put(`img/${ban}/${G.id}`, imgData); else await LAB.del(`img/${ban}/${G.id}`);
