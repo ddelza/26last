@@ -190,11 +190,31 @@
         tree.resp[id] = { grade: s.grade, ban: s.ban, answers: ans, done: rnd() < 0.93, updatedAt: at(100 + rnd() * 20) };
       }
     });
+    Object.assign(tree, heroSeed());
     return LAB.put('', tree);
   };
+  // ----- 1·2학년 광수 HERO 예시: 1학년 1반만 모둠 편성 + 1모둠은 ❶까지, 2모둠은 쓰는 중 -----
+  function heroSeed() {
+    var ban = '1-1', m = {}, leaders = {}, hero = {};
+    for (var n = 1; n <= 25; n++) { var id = sid(ban, n), g = (n - 1) % 5 + 1; m[id] = { no: g, name: nm(id), num: n }; if (n <= 5) leaders[g] = id; }
+    var mem = function (g) { return Object.keys(m).filter(function (k) { return m[k].no === g; }); };
+    var P = [['쉬는 시간에 교실이 너무 시끄러워요', '겪은 일: 옆 친구 말이 안 들려서 세 번이나 다시 물어봤다.'], ['복도에서 뛰다가 부딪힐 뻔했어요', '본 것: 점심시간에 계단 앞에서 두 명이 부딪혔다.'],
+      ['의자 끄는 소리가 커요', '들은 말: 선생님이 수업 시작할 때마다 조용히 하라고 하신다.'], ['교실 뒤 사물함 앞이 늘 붐벼요', '겪은 일: 쉬는 시간 끝날 때 사물함을 못 열었다.']];
+    var q1 = {}; mem(1).slice(0, 4).forEach(function (id, i) { q1[id] = { problem: P[i][0], evidence: P[i][1], name: nm(id), at: at(10 + i) }; });
+    hero.h1 = { q1: q1, area: { cat: 'break', title: '쉬는 시간 교실 소리 때문에 친구 말이 안 들려요', story: '모둠원 4명 중 3명이 비슷한 일을 겪었다.', by: mem(1)[0], byName: nm(mem(1)[0]), at: at(20) } };
+    var q2 = {}; mem(2).slice(0, 2).forEach(function (id, i) { q2[id] = { problem: P[(i + 1) % 4][0], evidence: P[(i + 1) % 4][1], name: nm(id), at: at(12 + i) }; });
+    hero.h2 = { q1: q2 };
+    var t = {}; t[ban] = { _config: { n: 5, leaders: leaders, at: at(5) }, m: m };
+    var h = {}; h[ban] = hero;
+    return { team: t, hero: h, heroCfg: { 1: { mode: 'C', theme: '', period: '12/10 ~ 12/24', updatedAt: at(1) }, 2: { mode: 'B', theme: '함께 쓰는 공간과 규칙', period: '12/10 ~ 12/24', updatedAt: at(1) } } };
+  }
   // 체험 데이터가 없으면 한 번 만들어 둔다 (처음 들어온 선생님이 빈 화면을 보지 않게)
   LAB.ensureDemo = function () {
-    return LAB.get('_seeded').then(function (v) { return v ? null : LAB.seedDemo(); });
+    return LAB.get('_seeded').then(function (v) {
+      if (!v) return LAB.seedDemo();
+      // 광수 HERO 예시가 생기기 전에 만든 체험 데이터에는 1·2학년 예시만 덧붙인다
+      return LAB.get('heroCfg').then(function (c) { return c ? null : LAB.patch('', heroSeed()); });
+    });
   };
   LAB.resetDemo = function () { return LAB.del('').then(function () { return LAB.seedDemo(); }); };
 })();

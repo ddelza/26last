@@ -209,8 +209,70 @@
     return { conf: conf, picks: picks, problems: problems, groups: groups, cap: conf.cap || 5 };
   };
   LAB.loadGroups = function (ban) {
+    if (LAB.isHero(ban)) return Promise.all([LAB.get('team/' + ban), LAB.get('hero/' + ban)]).then(function (r) { return LAB.buildHeroGroups(r[0], r[1]); });
     return Promise.all([LAB.get('pick/' + ban), LAB.get('problems/' + ban)]).then(function (r) { return LAB.buildGroups(r[0], r[1]); });
   };
+
+  // ---------- 광수 HERO (1·2학년) — 3학년은 위의 문제→선착순 구조 그대로 ----------
+  // team/{반}/_config = { n:모둠 수(기본 5), leaders:{ 모둠번호: 학번 } }   team/{반}/m/{학번} = { no:모둠번호, name, num }   (선생님이 편성)
+  // hero/{반}/h{번호}/ q1/{학번}={problem,evidence,name,at} · area={cat,title,story,byTeacher,by,byName,at}
+  //   memo={num,meaning,key,by,byName,at} · declare={problem,evidence,by,byName,at} · names/{학번}={name,why,at} · vote/{학번}=후보학번 · heroName={name,by,at}
+  //   practice/{push}={date,what,change,by,byName,at} · method={text,...} · help/{push}={date,card,help,by,byName,at} · canva/{칸}={text,by,byName,at}
+  // heroCfg/{학년} = { mode:'A'|'B'|'C', theme, period, updatedAt }
+  LAB.isHero = function (ban) { return /^[12]-/.test(String(ban || '')); };
+  LAB.HERO_N = 5;
+  LAB.HERO_MODES = {
+    A: { name: '선생님이 주제를 정해 줘요', desc: '모둠마다 선생님이 정한 주제로 시작해요.' },
+    B: { name: '설문 결과 + 학년 핵심 주제를 보고 골라요', desc: '학교평가 설문 결과와 우리 학년 핵심 주제를 함께 보고 골라요.' },
+    C: { name: '설문 결과만 보고 자유롭게 골라요', desc: '학교평가 설문 결과를 보고 모둠이 자유롭게 골라요.' },
+  };
+  // HERO 문제 영역 (우리 학교 안의 문제)
+  LAB.HERO_AREAS = [
+    { id: 'talk', icon: '💬', name: '말과 관계', ex: '복도·단톡방에서 오가는 말, 친구 사이' },
+    { id: 'space', icon: '🏫', name: '함께 쓰는 공간·규칙', ex: '교실·화장실·도서관·체육관 쓰는 규칙' },
+    { id: 'team', icon: '🤝', name: '모둠·함께 배우기', ex: '모둠 활동, 수업 시간 분위기' },
+    { id: 'safety', icon: '🚸', name: '안전', ex: '복도·계단에서 부딪히기, 뛰어다니기' },
+    { id: 'green', icon: '🍱', name: '급식·환경', ex: '잔반, 분리수거, 물·전기 아끼기' },
+    { id: 'break', icon: '⏰', name: '쉬는 시간·학교생활', ex: '쉬는 시간 보내기, 등하교, 시끄러움' },
+    { id: 'etc', icon: '✨', name: '그 밖의 문제', ex: '위에 없는 우리 학교 문제' },
+  ];
+  LAB.heroArea = function (id) { return LAB.HERO_AREAS.filter(function (c) { return c.id === id; })[0] || null; };
+  LAB.SCHOOL_FACTS = [
+    { icon: '💬', t: '말', d: "올해 가장 마음에 걸린 행동은 '말'이었어요" },
+    { icon: '🏫', t: '공간·규칙', d: "바꾸고 싶은 일 1위는 '함께 쓰는 공간과 규칙'이에요" },
+    { icon: '🤝', t: '모둠', d: '모둠은 할 일을 모르거나 생각이 다를 때 멈춰요' },
+  ];
+  LAB.buildHeroGroups = function (team, hero) {
+    team = team || {}; hero = hero || {};
+    var conf = team._config || {}, m = team.m || {}, n = conf.n || LAB.HERO_N, leaders = conf.leaders || {};
+    var groups = [];
+    for (var i = 1; i <= n; i++) {
+      var gid = 'h' + i, H = hero[gid] || {}, A = H.area || {};
+      var mem = Object.keys(m).filter(function (sid) { return m[sid] && +m[sid].no === i; }).map(function (sid) {
+        return { id: sid, name: m[sid].name || '', num: m[sid].num || 0, leader: leaders[i] === sid };
+      }).sort(function (a, b) { return a.num - b.num; });
+      groups.push({ id: gid, no: i, title: A.title || '(아직 문제를 정하는 중)', cat: A.cat, story: A.story, hasArea: !!A.title,
+        heroName: (H.heroName && H.heroName.name) || '', leader: leaders[i] || '', members: mem, hero: H, author: null });
+    }
+    return { hero: true, conf: conf, team: m, groups: groups, cap: 99 };
+  };
+  LAB.HERO_STAGES = [
+    { no: 1, icon: '🔍', name: '문제 찾기', color: '#f76707', soft: '#fff4e6', q: '퀘스트 ❶',
+      goal: '학교평가 설문 결과를 보고 우리 학교에서 불편한 점을 찾아요. 모둠이 해결할 문제 영역을 골라요.',
+      pages: [{ href: 'h1-problem.html', label: '❶ 문제 찾기 (문제 + 근거, 모둠 문제 정하기)' }] },
+    { no: 2, icon: '📊', name: '조사하기', color: '#1c7ed6', soft: '#e7f5ff', q: '퀘스트 ❷❸❹❺',
+      goal: '설문 문항을 만들고, 전교생이 함께 답하고, 결과를 읽고, 숫자를 근거로 해결할 문제를 선언해요.',
+      pages: [{ href: 's2-question.html', label: '❷ 설문 문항 만들기' }, { href: 'survey.html', label: '❸ 전교생 설문 답하기' },
+        { href: 's3-result.html', label: '❹ 설문 결과 읽기' }, { href: 'h5-declare.html', label: '❺ 해결할 문제 선언 · HERO 그룹 명' }] },
+    { no: 3, icon: '🛠️', name: '해 보기', color: '#0ca678', soft: '#e6fcf5', q: '퀘스트 ❻',
+      goal: '고른 해결 방법을 학교에서 직접 해 보고, 과정과 달라진 점을 기록해요. (사진은 캔바에 바로 넣어요)',
+      pages: [{ href: 'h6-practice.html', label: '❻ 해 본 방법과 실천 기록' }] },
+    { no: 4, icon: '🎤', name: '돌아보기', color: '#d6336c', soft: '#fff0f6', q: '퀘스트 ❼',
+      goal: '앞에서 쓴 내용을 모아 캔바 발표 틀을 채우고, 배운 점을 돌아봐요.',
+      pages: [{ href: 'h7-canva.html', label: '❼ 돌아보고 캔바 틀 채우기' }] },
+  ];
+  LAB.stagesFor = function (ban) { return LAB.isHero(ban) ? LAB.HERO_STAGES : LAB.STAGES; };
+  LAB.heroCfg = function (ban) { return LAB.get('heroCfg/' + LAB.gradeOf(ban)).then(function (c) { return c || {}; }); };
   // 학생이 쓴 문제들 (문제키 목록)
   LAB.problemsBy = function (problems, sid) {
     return Object.keys(problems || {}).filter(function (k) { return problems[k] && (problems[k].id || k) === sid; });
@@ -232,6 +294,15 @@
     });
   };
   LAB.groupBannerHtml = function (g, ban) {
+    if (LAB.isHero(ban)) {
+      var hc = LAB.heroArea(g.cat);
+      return '<div class="grp-banner"><div class="grp-no">' + g.no + '모둠</div><div class="grp-txt">' +
+        '<div class="grp-cat">' + (g.heroName ? '🦸 ' + LAB.esc(g.heroName) : '🦸 HERO 그룹') + (hc ? ' · ' + hc.icon + ' ' + LAB.esc(hc.name) : '') + (LAB.student.isTeacher ? ' · ' + LAB.esc(LAB.banLabel(ban)) : '') + '</div>' +
+        '<div class="grp-title">' + LAB.esc(g.title) + '</div>' +
+        '<div class="grp-mem">' + g.members.map(function (m) {
+          return '<span class="' + (m.id === LAB.student.id ? 'me' : '') + '">' + (m.leader ? '👑' : '') + LAB.esc(m.name || m.id) + '</span>';
+        }).join(' · ') + '</div></div></div>';
+    }
     var c = LAB.cat(g.cat);
     return '<div class="grp-banner"><div class="grp-no">' + g.no + '모둠</div><div class="grp-txt">' +
       '<div class="grp-cat">' + c.icon + ' ' + LAB.esc(c.name) + (LAB.student.isTeacher ? ' · ' + LAB.esc(LAB.banLabel(ban)) : '') + '</div>' +
@@ -241,6 +312,9 @@
       }).join(' · ') + '</div></div></div>';
   };
   LAB.noGroupHtml = function () {
+    if (LAB.student && !LAB.student.isTeacher && LAB.isHero(LAB.myBan()))
+      return '<div class="card center"><div style="font-size:2rem">🧭</div><b>아직 모둠이 정해지지 않았어요.</b>' +
+        '<p class="hint" style="margin-top:6px">선생님이 모둠을 짜 주시면 여기에서 바로 시작할 수 있어요.</p></div>';
     return '<div class="card center"><div style="font-size:2rem">🧭</div><b>아직 모둠이 정해지지 않았어요.</b>' +
       '<p class="hint" style="margin-top:6px">1단계 <a href="s1-pick.html">② 모둠 정하기</a>에서 먼저 모둠을 신청해 주세요.<br>신청을 못 했다면 선생님께 말씀드려요.</p></div>';
   };
@@ -266,14 +340,15 @@
       LAB.cfg = cfg || { year: new Date().getFullYear(), sem: 2 };
       document.title = (opts.title ? opts.title + ' · ' : '') + LAB.NAME;
       var head = document.getElementById('lab-head');
-      var st = opts.stage ? LAB.STAGES[opts.stage - 1] : null;
+      var heroP = LAB.student && opts.heroStage && LAB.isHero(LAB.myBan());
+      var st = heroP ? LAB.HERO_STAGES[opts.heroStage - 1] : opts.stage ? LAB.STAGES[opts.stage - 1] : null;
       if (st) document.documentElement.style.setProperty('--stage', st.color), document.documentElement.style.setProperty('--stage-soft', st.soft);
       if (DEMO && !document.getElementById('demo-ribbon')) document.body.insertAdjacentHTML('afterbegin', '<div id="demo-ribbon" class="demo-ribbon">🧪 <b>체험판</b> · 실제 학생 데이터와 분리돼 있고, 학생 이름은 모두 가짜예요. 마음껏 눌러 보세요!</div>');
       if (head) {
         head.innerHTML =
           '<div class="topline"><a href="index.html">' + LAB.ICON + ' ' + LAB.esc(LAB.NAME) + '</a>' +
           (LAB.student ? '<span>' + LAB.esc(window.srWhoLabel(LAB.student)) + '</span>' : '') + '</div>' +
-          (st ? '<div class="stage-tag">' + st.no + '단계 · ' + st.icon + ' ' + LAB.esc(st.name) + '</div>' : '') +
+          (st ? '<div class="stage-tag">' + st.no + '단계 · ' + st.icon + ' ' + LAB.esc(st.name) + (st.q ? ' · ' + st.q : '') + '</div>' : '') +
           '<h1 class="page-title">' + LAB.esc(opts.title || LAB.NAME) + '</h1>' +
           (opts.subtitle ? '<p class="page-sub">' + opts.subtitle + '</p>' : '');
       }
@@ -285,18 +360,24 @@
   var qeSeq = 0;
   function normQ(v) {
     v = v || {};
-    return { q: v.q || '', type: v.type === 'open' ? 'open' : 'choice', options: (v.options && v.options.length ? v.options.slice() : ['', '']),
+    var ty = v.type === 'open' || v.type === 'scale' ? v.type : 'choice';
+    return { q: v.q || '', type: ty, options: (ty === 'choice' && v.options && v.options.length ? v.options.slice() : (v.keepOpts || ['', ''])),
+      lo: v.lo !== undefined ? v.lo : '전혀 아니다', hi: v.hi !== undefined ? v.hi : '매우 그렇다',
       multi: !!v.multi, max: Math.max(0, parseInt(v.max, 10) || 0), etc: !!v.etc, focus: LAB.FOCUS[v.focus] ? v.focus : '' };
   }
   LAB.cleanQ = function (v) {
     v = normQ(v);
     var o = { q: v.q.trim(), type: v.type };
     if (v.focus) o.focus = v.focus;
+    if (v.type === 'scale') { o.lo = String(v.lo || '').trim(); o.hi = String(v.hi || '').trim(); o.options = LAB.scaleOpts(o); }
     if (v.type === 'choice') { o.options = v.options.map(function (x) { return String(x || '').trim(); }).filter(Boolean); o.multi = v.multi; if (v.multi && v.max) o.max = v.max; o.etc = v.etc; }
     return o;
   };
+  // 1~6점 문항: 보기 6개를 자동으로 만든다 (응답·집계는 객관식과 똑같이 { sel:[번호] })
+  LAB.scaleOpts = function (v) { return [1, 2, 3, 4, 5, 6].map(function (k) { return k + '점' + (k === 1 && v.lo ? ' · ' + v.lo : k === 6 && v.hi ? ' · ' + v.hi : ''); }); };
   LAB.checkQ = function (v, needFocus) {
     v = LAB.cleanQ(v);
+    if (v.type === 'scale' && (!v.lo || !v.hi)) return '1~6점 문항은 1점과 6점이 무슨 뜻인지 써 주세요.';
     if (needFocus && !v.focus) return '무엇을 알아보는 질문인지(①~④) 먼저 골라 주세요.';
     if (!v.q) return '질문을 써 주세요.';
     if (v.type === 'choice' && v.options.length < 2) return '객관식은 보기가 2개 이상 있어야 해요.';
@@ -310,6 +391,7 @@
       var t = root.querySelector('.qe-q'); if (!t) return;
       st.q = t.value;
       var r = root.querySelector('input[name="' + uid + '"]:checked'); st.type = r ? r.value : 'choice';
+      var lo = root.querySelector('.qe-lo'), hi = root.querySelector('.qe-hi'); if (lo) st.lo = lo.value; if (hi) st.hi = hi.value;
       var ops = root.querySelectorAll('.qe-opt input');
       if (ops.length) st.options = Array.prototype.map.call(ops, function (e) { return e.value; });
       var m = root.querySelector('.qe-multi'); if (m) st.multi = m.checked;
@@ -326,6 +408,7 @@
         '<textarea class="qe-q" rows="2" placeholder="' + LAB.escAttr(fo ? fo.ex : (opts.placeholder || '전교생에게 물어볼 질문을 써요')) + '">' + LAB.esc(st.q) + '</textarea>' +
         '<div class="qe-type">' +
         '<label class="chip"><input type="radio" name="' + uid + '" value="choice"' + (st.type === 'choice' ? ' checked' : '') + '><span>☑️ 객관식 (보기 중에 고르기)</span></label>' +
+        '<label class="chip"><input type="radio" name="' + uid + '" value="scale"' + (st.type === 'scale' ? ' checked' : '') + '><span>🔢 1~6점 고르기</span></label>' +
         '<label class="chip"><input type="radio" name="' + uid + '" value="open"' + (st.type === 'open' ? ' checked' : '') + '><span>✍️ 주관식 (직접 쓰기)</span></label></div>';
       if (st.type === 'choice') {
         h += '<div class="qe-opts">' + st.options.map(function (o, i) {
@@ -341,6 +424,11 @@
             return '<label class="qe-maxl">↳ 몇 개까지? <select class="qe-max">' + o + '</select></label>';
           })() : '') +
           '<label><input type="checkbox" class="qe-etc"' + (st.etc ? ' checked' : '') + '> 맨 끝에 "기타(직접 쓰기)" 넣기</label></div>';
+      } else if (st.type === 'scale') {
+        h += '<div class="qe-scale"><div class="qe-sc-row">' + [1, 2, 3, 4, 5, 6].map(function (k) { return '<span>' + k + '</span>'; }).join('') + '</div>' +
+          '<div class="qe-sc-lab"><label>1점 = <input type="text" class="qe-lo" value="' + LAB.escAttr(st.lo) + '" placeholder="전혀 아니다"></label>' +
+          '<label>6점 = <input type="text" class="qe-hi" value="' + LAB.escAttr(st.hi) + '" placeholder="매우 그렇다"></label></div>' +
+          '<div class="hint" style="margin:6px 0 0">🔢 얼마나 그런지 1~6점으로 골라요. 결과는 "4점 이상 ○%"처럼 숫자로 말하기 좋아요. 가운데(3.5점)가 없어서 한쪽을 고르게 돼요.</div></div>';
       } else {
         h += '<div class="hint" style="margin:6px 0 0">✍️ 응답자가 자유롭게 글로 답해요. 생생한 이유·경험을 모을 수 있지만, 숫자로 정리하기는 어려워요.</div>';
       }
@@ -376,6 +464,8 @@
     if (v.type === 'choice') {
       h += '<div class="qv-meta">☑️ 객관식' + (v.multi ? ' · ' + LAB.multiLabel(v) : '') + '</div><ol class="qv-opts">' +
         (v.options || []).map(function (o) { return '<li>' + LAB.esc(o) + '</li>'; }).join('') + (v.etc ? '<li class="etc">기타(직접 쓰기)</li>' : '') + '</ol>';
+    } else if (v.type === 'scale') {
+      h += '<div class="qv-meta">🔢 1~6점</div><div class="qv-scale"><span>1점 ' + LAB.esc(v.lo || '') + '</span><span class="dots">1 · 2 · 3 · 4 · 5 · 6</span><span>6점 ' + LAB.esc(v.hi || '') + '</span></div>';
     } else h += '<div class="qv-meta">✍️ 주관식</div>';
     return h + '</div>';
   };
@@ -439,12 +529,16 @@
     var all = LAB.tally(q, resps, key), t = opt.grade ? LAB.tally(q, resps, key, opt.grade) : all;
     var h = '<div class="res-n">응답 <b>' + t.n + '명</b>' + (opt.grade ? ' (' + opt.grade + '학년)' : ' · 1학년 ' + all.byGrade[1] + ' · 2학년 ' + all.byGrade[2] + ' · 3학년 ' + all.byGrade[3]) + '</div>';
     if (!t.n) return h + '<div class="empty-state">아직 응답이 없어요.</div>';
-    if (q.type === 'choice') {
+    if (q.type === 'scale') {
+      var hiN = t.counts[3] + t.counts[4] + t.counts[5], sum = 0; t.counts.forEach(function (c, i) { sum += c * (i + 1); });
+      h += '<div class="sc-sum"><div><b>' + LAB.pct(hiN, t.n) + '%</b><small>4점 이상 (' + hiN + '명)</small></div><div><b>' + LAB.pct(t.n - hiN, t.n) + '%</b><small>3점 이하 (' + (t.n - hiN) + '명)</small></div><div><b>' + (Math.round(sum / t.n * 10) / 10) + '점</b><small>평균</small></div></div>';
+    }
+    if (q.type === 'choice' || q.type === 'scale') {
       var max = Math.max.apply(null, t.counts.concat([t.etcN, 1]));
       var rows = (q.options || []).map(function (o, i) { return [o, t.counts[i]]; });
       if (q.etc) rows.push(['기타(직접 쓰기)', t.etcN]);
       h += '<div class="bars">' + rows.map(function (r, i) {
-        return '<div class="bar-row' + (r[1] === max ? ' top' : '') + '"><div class="bar-lab">' + LAB.circled(i) + ' ' + LAB.esc(r[0]) + '</div>' +
+        return '<div class="bar-row' + (r[1] === max ? ' top' : '') + '"><div class="bar-lab">' + (q.type === 'scale' ? '' : LAB.circled(i) + ' ') + LAB.esc(r[0]) + '</div>' +
           '<div class="bar-track"><div class="bar-fill" style="width:' + (r[1] / max * 100) + '%"></div></div>' +
           '<div class="bar-val"><b>' + LAB.pct(r[1], t.n) + '%</b> <small>' + r[1] + '명</small></div></div>';
       }).join('') + '</div>' + (q.multi ? '<div class="dc-muted">※ 여러 개 고를 수 있는 질문이라 비율을 더하면 100%가 넘을 수 있어요.</div>' : '');
@@ -452,7 +546,7 @@
         var gt = [1, 2, 3].map(function (g) { return LAB.tally(q, resps, key, g); });
         h += '<details class="grade-table"><summary>📋 학년별로 비교해 보기</summary><table><tr><th>보기</th><th>1학년</th><th>2학년</th><th>3학년</th></tr>' +
           rows.map(function (r, i) {
-            return '<tr><td>' + LAB.circled(i) + ' ' + LAB.esc(r[0]) + '</td>' + gt.map(function (x) {
+            return '<tr><td>' + (q.type === 'scale' ? '' : LAB.circled(i) + ' ') + LAB.esc(r[0]) + '</td>' + gt.map(function (x) {
               var c = i < (q.options || []).length ? x.counts[i] : x.etcN; return '<td>' + LAB.pct(c, x.n) + '%<small> (' + c + ')</small></td>';
             }).join('') + '</tr>';
           }).join('') + '<tr class="sum"><td>응답 수</td>' + gt.map(function (x) { return '<td>' + x.n + '명</td>'; }).join('') + '</tr></table></details>';
@@ -468,6 +562,13 @@
       }
     }
     return h;
+  };
+  // 답을 글로 (CSV·인쇄용)
+  LAB.ansText = function (q, a) {
+    if (!LAB.isAnswered(q, a)) return '';
+    if (q.type === 'open') return String(a);
+    if (q.type === 'scale') return String(((a.sel || [])[0] || 0) + 1);
+    return (a.sel || []).map(function (i) { return q.options[i]; }).concat(a.etc && String(a.etc).trim() ? ['기타: ' + String(a.etc).trim()] : []).join(' / ');
   };
   LAB.downloadCsv = function (filename, rows) {
     var csv = '﻿' + rows.map(function (r) { return r.map(function (c) { c = String(c === undefined || c === null ? '' : c); return /[",\n]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; }).join(','); }).join('\n');

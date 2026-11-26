@@ -4,8 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>질문 다듬기</title>
-<link rel="stylesheet" href="common.css?v=7">
+<link rel="stylesheet" href="common.css?v=8">
 <style>
+.badq { background: #fff5f5; border: 1.5px solid #ffc9c9; border-radius: 12px; padding: 10px 12px; margin-top: 10px; font-size: 0.84rem; }
+.badq b { color: #c92a2a; } .badq ul { margin: 6px 0 0; padding-left: 18px; } .badq li { margin: 2px 0; } .badq li b { color: #212529; }
+.badq-mini { margin: 0 0 10px; } .badq-mini summary { cursor: pointer; font-size: 0.82rem; font-weight: 700; color: #c92a2a; }
 .types { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .type { border-radius: 14px; padding: 12px 14px; font-size: 0.84rem; line-height: 1.6; }
 .type.survey { background: #e7f5ff; } .type.solution { background: #fff9db; }
@@ -53,13 +56,19 @@
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=12"></script>
+<script src="lab.js?v=13"></script>
 <script>
 let ban, G, me, members = [], drafts = {}, fin = {}, surveyCfg = {}, imgData = null, imgLoaded = false;
 const eds = {}; // 편집기: my_survey, my_solution, fin_survey, fin_solution
 const base = {}; // 최종 질문을 불러온 시점의 서버 기록(at) — 다른 친구가 고쳤는지 확인용
 const T = LAB.QTYPES;
 
+const BADQ_HTML = `<div class="badq"><b>🚫 이런 문항은 안 돼요</b><ul>
+  <li><b>두 가지를 한 번에 묻기</b> — "급식 양과 맛은 어땠나요?"</li>
+  <li><b>답을 몰아가기</b> — "복도 달리기, 당연히 없애야 하죠?"</li>
+  <li><b>누가 답했는지 드러나기</b> — "이름·학번을 써 주세요", "우리 반에서 떠든 사람은?"</li>
+  <li><b>고를 답이 없기</b> — 보기가 "맛없어서 / 양이 많아서" 둘뿐</li>
+  <li><b>특정 사람 겨냥하기</b> — "가장 시끄러운 친구는 누구인가요?"</li></ul></div>`;
 function surveyPreviewHtml(o, img) {
   const q = o.q || {};
   let h = '<div class="sv-card">';
@@ -81,13 +90,13 @@ function render() {
       ${T[k].subs.map(id => { const f = LAB.FOCUS[id]; return `<div class="sub"><b>${f.no} ${f.name}</b> ${f.ask}<div class="ex">${f.ex}</div></div>`; }).join('')}</div>`).join('')}
     </div>
     <div class="type check"><h3>🔁 [선택] ${LAB.CHECK.no} ${LAB.CHECK.name}</h3>${LAB.CHECK.ask}. 4단계에서 해결 방안을 실제로 해 볼 수 있다면, 우리 설문 질문을 <b>그대로 다시</b> 물어 전과 후를 비교해 봐요. 숫자가 달라졌다면 해결 방안이 효과가 있었다는 증거예요!</div>
-    <div class="tip"><b>✅ 좋은 설문 질문 체크리스트</b><ul>
-      <li><b>한 번에 하나만</b> 물어요. ("잠이 부족하고 피곤한가요?" ✗ → 두 개로 나누기)</li>
-      <li><b>답을 정해 놓고 묻지 않아요.</b> ("폰 사용 규칙이 꼭 필요하죠?" ✗)</li>
-      <li>객관식 보기는 <b>겹치지 않고, 빠지는 사람이 없게</b> 만들어요. (예: 1시간 미만 / 1~2시간 / 2~3시간 / 3시간 이상)</li>
-      <li><b>1학년 후배도 바로 이해할</b> 쉬운 말로 써요.</li>
+    <div class="tip"><b>✅ 좋은 설문 질문</b><ul>
+      <li>객관식 보기는 <b>겹치지 않고, 빠지는 사람이 없게</b> 만들어요. (예: 0번 / 1~2번 / 3~4번 / 5번 이상)</li>
+      <li>얼마나 심한지 묻고 싶으면 <b>🔢 1~6점 고르기</b>도 좋아요. (1점 전혀 아니다 ~ 6점 매우 불편하다)</li>
+      <li><b>1학년도 바로 이해할</b> 쉬운 말로 써요.</li>
       <li>결과를 받았을 때 <b>그 숫자로 무엇을 말할 수 있을지</b> 미리 떠올려 봐요.</li>
     </ul></div>
+    ${BADQ_HTML}
     <div class="dc-muted">진행 순서: ① 각자 2개 만들기 → ② 모둠원 질문 모아 보기 → ③ 토의해서 모둠 최종 질문 2개 → ④ 그중 딱 하나 골라 설문에 내보내기</div>
   </div>
 
@@ -105,6 +114,7 @@ function render() {
   <div class="step-h"><div class="n">3</div><h2>모둠 최종 질문 완성하기<span class="sub">토의하며 다듬어요 · 모둠원 누구나 고칠 수 있어요</span></h2></div>
   <div class="card">
     <p class="hint">②의 질문을 가져와 고치거나 합쳐도 되고, 새로 써도 돼요. <b>한 사람이 대표로 고치고 저장</b>하면 다툼 없이 깔끔해요.</p>
+    <details class="badq-mini"><summary>🚫 저장하기 전에 "안 되는 문항"인지 한 번 더 확인</summary>${BADQ_HTML}</details>
     ${['survey', 'solution'].map(k => `<div class="qbox ${k}"><div class="h">${T[k].icon} 모둠 최종 ${T[k].name}</div>
       <div class="notice" id="nt_${k}"></div><div id="ed_fin_${k}"></div>
       <div class="error-msg" id="finErr_${k}"></div><div class="ok-msg" id="finOk_${k}"></div>
@@ -233,6 +243,7 @@ async function saveOut(send) {
   const o = readOut();
   const fail = m => { err.textContent = m; err.classList.add('show'); };
   if (send) {
+    if (LAB.isHero(ban) && !G.hasArea) return fail('❶ 문제 찾기에서 우리 모둠 문제를 먼저 정해 주세요.');
     if (!o.which) return fail('내보낼 질문을 골라 주세요.');
     const cur = eds['fin_' + o.which].get();
     if (!fin[o.which] || JSON.stringify(LAB.cleanQ(fin[o.which])) !== JSON.stringify(cur)) return fail('③의 최종 질문에 저장하지 않은 고친 내용이 있어요. ③에서 먼저 저장해 주세요.');
@@ -287,7 +298,7 @@ document.addEventListener('click', e => {
   document.getElementById('nt_' + k).classList.remove('show'); renderOut();
 });
 
-LAB.start({ stage: 2, title: '질문 다듬기', subtitle: '전교생에게 던질 질문을 만들고, 모둠이 함께 딱 하나를 골라 내보내요.' }).then(async () => {
+LAB.start({ stage: 2, heroStage: 2, title: '질문 다듬기', subtitle: '전교생에게 던질 질문을 만들고, 모둠이 함께 딱 하나를 골라 내보내요.' }).then(async () => {
   me = LAB.student.id;
   const r = await LAB.resolveMyGroup();
   ban = r.ban; G = r.group;

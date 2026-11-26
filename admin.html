@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>교사용 관리</title>
-<link rel="stylesheet" href="common.css?v=7">
+<link rel="stylesheet" href="common.css?v=8">
 <style>
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
 .tabs button { border: 1.5px solid var(--border); background: #fff; border-radius: 999px; padding: 8px 14px; font-weight: 800; cursor: pointer; font-family: inherit; font-size: 0.84rem; }
@@ -51,6 +51,10 @@ td.no { background: #fff0f0; color: #e03131; font-weight: 800; } td.na { color: 
 .legend .c { border-radius: 6px; padding: 2px 8px; }
 .legend .ok { background: #ebfbee; color: #2b8a3e; } .legend .half { background: #fff9db; color: #e67700; } .legend .no { background: #fff0f0; color: #e03131; } .legend .na { background: #f8f9fa; color: #adb5bd; }
 .rep-sec { margin: 6px 0; } .rep-sec b { display: block; font-size: 0.74rem; color: var(--stage); }
+.hgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.hg { border: 1.5px solid #dee2e6; border-radius: 12px; padding: 10px; }
+.hg-h { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+.hg-h select { width: auto; flex: 1; font-size: 0.78rem; padding: 3px 6px; }
 </style>
 </head>
 <body>
@@ -69,7 +73,7 @@ td.no { background: #fff0f0; color: #e03131; font-weight: 800; } td.na { color: 
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=12"></script>
+<script src="lab.js?v=13"></script>
 <script>
 const PASSWORDS = ['byung0703!', '7683101!'];
 const TABS = [['t0', '📋 학급 현황'], ['t1', '① 문제·모둠'], ['t2', '② 질문'], ['t3', '③ 설문'], ['t4', '④ 보고서·포스터']];
@@ -90,11 +94,12 @@ function open() {
   paintTabs(); show();
 }
 function paintTabs() {
-  document.getElementById('tabs').innerHTML = TABS.map(t => `<button data-tab="${t[0]}" class="${tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('') +
+  const TB = LAB.isHero(ban) ? [['t0', '📋 학급 현황'], ['t1', '① 모둠 편성·❶'], ['t2', '② ❷ 질문'], ['t3', '③ 설문'], ['t4', '④ ❹~❼ 진행']] : TABS;
+  document.getElementById('tabs').innerHTML = TB.map(t => `<button data-tab="${t[0]}" class="${tab === t[0] ? 'on' : ''}">${t[1]}</button>`).join('') +
     `<select id="banSel">${LAB.BANS.concat(LAB.DEMO ? [] : ['T']).map(b => `<option value="${b}" ${b === ban ? 'selected' : ''}>${LAB.banLabel(b)}</option>`).join('')}</select>` +
     (LAB.DEMO ? '<button id="demoReset" class="demo-reset" title="모든 선생님이 함께 쓰는 체험 데이터를 처음 상태로">🔄 체험 데이터 처음으로</button>' : '');
   document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; save(); paintTabs(); show(); });
-  document.getElementById('banSel').onchange = e => { ban = e.target.value; sel = []; save(); show(); };
+  document.getElementById('banSel').onchange = e => { ban = e.target.value; sel = []; save(); paintTabs(); show(); };
   const rb = document.getElementById('demoReset');
   if (rb) rb.onclick = async () => {
     if (!confirm('체험 데이터를 처음 상태로 되돌릴까요?\n\n다른 선생님들도 같은 체험판을 쓰고 있어서, 지금까지 누가 바꾼 내용도 모두 처음으로 돌아가요. (실제 학생 데이터와는 상관없어요)')) return;
@@ -104,7 +109,7 @@ function paintTabs() {
   };
 }
 function save() { try { localStorage.setItem('last26AdminTab', tab); localStorage.setItem('last26AdminBan', ban); } catch (e) {} }
-function show() { stopPickLive(); pickState = null; document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; ({ t0, t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
+function show() { stopPickLive(); pickState = null; document.getElementById('view').innerHTML = '<div class="loading-state">불러오는 중...</div>'; (LAB.isHero(ban) ? { t0: h0, t1: h1, t2, t3, t4: h4 } : { t0, t1, t2, t3, t4 })[tab]().catch(e => { document.getElementById('view').innerHTML = `<div class="error-msg show">${E(e.message)}</div>`; }); }
 const sv = (b, g) => `?ban=${encodeURIComponent(b)}&g=${encodeURIComponent(g)}`;
 
 // ---------- 📋 학급 현황 (학생 × 단계 제출 여부 한눈에) ----------
@@ -364,7 +369,7 @@ async function t3() {
     const rows = [head];
     rs.sort((a, b) => a.grade - b.grade || a.ban - b.ban).forEach(r => rows.push([r.grade, r.ban, r.done ? 'O' : ''].concat(items.map(x => {
       const a = r.answers[x.key]; if (!LAB.isAnswered(x.q, a)) return '';
-      return x.q.type === 'open' ? a : (a.sel || []).map(i => x.q.options[i]).concat(a.etc && a.etc.trim() ? ['기타: ' + a.etc.trim()] : []).join(' / ');
+      return LAB.ansText(x.q, a);
     }))));
     LAB.downloadCsv('전교생설문_전체응답.csv', rows);
   };
@@ -386,6 +391,142 @@ async function t4() {
         ${Object.keys(SEC_NAMES).map(k => `<div class="rep-sec"><b>${SEC_NAMES[k]} ${rp[k] ? `<span class="dc-muted">${E(rp[k].byName)} ${LAB.fmtTime(rp[k].at)}</span>` : ''}</b>${rp[k] ? LAB.nl2br(rp[k].text) : '<span class="dc-muted">–</span>'}</div>`).join('')}
         <div class="rep-sec"><b>🙋 개인 기여</b>${g.members.map(m => `<div>${E(m.name)}: ${cc[m.id] ? E(cc[m.id].text) : '<span class="dc-muted">–</span>'}</div>`).join('')}</div></details>
       <div class="btn-row" style="margin-top:8px"><a class="btn small ghost" target="_blank" href="s4-report.html${sv(ban, g.id)}">학생 화면 보기</a></div></div>`;
+  }).join('');
+}
+
+// ================= 1·2학년 광수 HERO (3학년 화면은 위 함수 그대로) =================
+async function h0() {
+  const [roster, D, Q, F, RS] = await Promise.all([LAB.classRoster(ban), LAB.loadGroups(ban), LAB.get(`q/${ban}`), LAB.get(`final/${ban}`), LAB.get('resp')]);
+  const q = Q || {}, fin = F || {}, resp = RS || {}, anyResp = Object.keys(resp).length > 0;
+  const gOf = s => LAB.groupOf(D, s.id);
+  const COLS = [
+    ['모둠', s => { const g = gOf(s); return { ok: !!g, txt: g ? g.no + '모둠' + (g.leader === s.id ? ' 👑' : '') : '✗' }; }],
+    ['❶ 내 문제', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; const d = (g.hero.q1 || {})[s.id]; return { ok: !!d, txt: d ? '✓' : '✗' }; }],
+    ['❶ 모둠 문제', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; return { ok: g.hasArea, txt: g.hasArea ? '✓' : '✗' }; }],
+    ['❷ 내 질문', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; const d = (q[g.id] || {})[s.id]; const n = d ? ['survey', 'solution'].filter(k => d[k] && d[k].q).length : 0; return { ok: n === 2 ? true : n ? 'half' : false, txt: n ? n + '/2' : '✗' }; }],
+    ['❷ 내보냄', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; const o = (fin[g.id] || {}).out; return { ok: !!(o && o.submitted), txt: o && o.submitted ? '🚀' : '✗' }; }],
+    ['❸ 설문', s => { const r = resp[s.id]; if (!anyResp) return { ok: null, txt: '–' }; return { ok: r && r.done ? true : r && r.answers ? 'half' : false, txt: r && r.done ? '제출' : r && r.answers ? '하는 중' : '✗' }; }],
+    ['❹ 숫자 메모', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; return { ok: !!g.hero.memo, txt: g.hero.memo ? '✓' : '✗' }; }],
+    ['❺ 선언·이름', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; const d = !!(g.hero.declare && g.hero.declare.problem); return { ok: d && g.heroName ? true : d || g.heroName ? 'half' : false, txt: g.heroName ? '🦸' : d ? '선언' : '✗' }; }],
+    ['❻ 실천 기록', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; const n = Object.keys(g.hero.practice || {}).length; return { ok: !!n, txt: n ? n + '개' : '✗' }; }],
+    ['❼ 캔바 칸', s => { const g = gOf(s); if (!g) return { ok: null, txt: '–' }; const n = Object.keys(g.hero.canva || {}).length; return { ok: n >= 20 ? true : n ? 'half' : false, txt: n ? n + '칸' : '✗' }; }],
+  ];
+  const cells = roster.map(s => COLS.map(c => c[1](s)));
+  const sum = COLS.map((c, j) => { const v = cells.map(r => r[j]).filter(x => x.ok !== null); return { done: v.filter(x => x.ok === true).length, all: v.length }; });
+  const cls = x => x.ok === true ? 'ok' : x.ok === 'half' ? 'half' : x.ok === false ? 'no' : 'na';
+  document.getElementById('view').innerHTML = `
+  <div class="card"><h2>📋 ${LAB.banLabel(ban)} 학급 현황 · 광수 HERO <span class="dc-muted">${roster.length}명 · 칸 제목을 누르면 안 한 학생 명단이 복사돼요</span></h2>
+    <div class="legend"><span class="c ok">완료</span><span class="c half">하는 중</span><span class="c no">안 함</span><span class="c na">해당 없음</span></div>
+    <div class="grid-wrap"><table class="t status"><tr><th>번호</th><th>이름</th>${COLS.map((c, j) => `<th class="copy" data-col="${j}">${c[0]}<br><small>${sum[j].done}/${sum[j].all}</small></th>`).join('')}</tr>
+      ${roster.map((s, i) => `<tr><td>${s.num}</td><td class="nm">${E(s.name)}</td>${cells[i].map(x => `<td class="${cls(x)}">${x.txt}</td>`).join('')}</tr>`).join('')}
+    </table></div><div class="ok-msg" id="copyOk"></div>
+    <p class="hint" style="margin-top:8px">모둠 칸(❶ 모둠 문제, ❷ 내보냄, ❹~❼)은 모둠원 모두에게 같은 값이 보여요.</p></div>`;
+  document.querySelectorAll('[data-col]').forEach(th => th.onclick = () => {
+    const j = +th.dataset.col, miss = roster.filter((s, i) => cells[i][j].ok !== true && cells[i][j].ok !== null), t = miss.map(s => `${s.num} ${s.name}`).join(', ');
+    const ok = document.getElementById('copyOk'); ok.textContent = miss.length ? `안 한 학생 ${miss.length}명: ${t}` : '모두 했어요! 🎉'; ok.classList.add('show');
+    if (miss.length && navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {});
+  });
+}
+
+// ① 모둠 편성(선생님) + 학년 출발 방식
+let hDraft = null; // 저장 전 편성 { ban, n, m:{학번:번호}, leaders:{번호:학번} }
+async function h1() {
+  const grade = LAB.gradeOf(ban);
+  const [D, roster, cfg] = await Promise.all([LAB.loadGroups(ban), LAB.classRoster(ban), LAB.heroCfg(ban)]);
+  const L0 = D.conf.leaders || {}, saved = { n: (D.conf.n || LAB.HERO_N), m: {}, leaders: {} };
+  Object.keys(L0).forEach(k => { if (L0[k]) saved.leaders[k] = L0[k]; }); // Firebase가 숫자 키를 배열로 돌려줘도 같게
+  Object.keys(D.team || {}).forEach(k => { if (D.team[k]) saved.m[k] = +D.team[k].no; });
+  if (!hDraft || hDraft.ban !== ban) hDraft = Object.assign({ ban }, JSON.parse(JSON.stringify(saved)));
+  const dr = hDraft, dirty = JSON.stringify({ n: dr.n, m: dr.m, leaders: dr.leaders }) !== JSON.stringify(saved);
+  const nOf = i => roster.filter(s => dr.m[s.id] === i);
+  const free = roster.filter(s => !dr.m[s.id] || dr.m[s.id] > dr.n);
+  const modeA = cfg.mode === 'A', nums = Array.from({ length: dr.n }, (_, k) => k + 1);
+  const topicOf = i => { const g = D.groups[i - 1], a = g && g.hero && g.hero.area; return a && a.byTeacher ? a.title : ''; };
+  document.getElementById('view').innerHTML = `
+  <div class="card"><h2>🧭 ${grade}학년 출발 방식 <span class="dc-muted">${grade}학년 모든 반에 같이 적용</span></h2>
+    ${Object.keys(LAB.HERO_MODES).map(k => `<label style="display:block;margin:6px 0;font-size:0.88rem"><input type="radio" name="hmode" value="${k}" ${cfg.mode === k ? 'checked' : ''}> <b>${k}</b> ${E(LAB.HERO_MODES[k].name)} <span class="dc-muted">— ${E(LAB.HERO_MODES[k].desc)}</span></label>`).join('')}
+    <label class="field-label">학년 핵심 주제 <span class="dc-muted">(B일 때 학생 화면에 보여요)</span></label><input type="text" id="htheme" maxlength="60" value="${LAB.escAttr(cfg.theme || '')}" placeholder="예) 함께 쓰는 공간과 규칙">
+    <label class="field-label">실천 기간 <span class="dc-muted">(❻ 화면에 보여요)</span></label><input type="text" id="hperiod" maxlength="60" value="${LAB.escAttr(cfg.period || '')}" placeholder="예) 12/10 ~ 12/24">
+    <div class="ok-msg" id="hcOk"></div><button class="btn small" id="hcSave" style="margin-top:8px">💾 ${grade}학년 설정 저장</button></div>
+
+  <div class="card"><h2>👥 ${LAB.banLabel(ban)} 모둠 편성 <span class="dc-muted">선생님이 직접 · 저장하면 학생 화면에 바로 보여요</span></h2>
+    ${dirty ? '<div class="error-msg show">⚠️ 아직 저장하지 않은 편성이 있어요. 아래 <b>💾 편성 저장</b>을 눌러야 학생에게 보여요.</div>' : ''}
+    <div class="btn-row" style="margin:8px 0"><label style="flex:none;align-self:center;font-size:0.85rem">모둠 수 <select id="hn" style="width:auto">${[3, 4, 5, 6, 7, 8].map(k => `<option ${dr.n === k ? 'selected' : ''}>${k}</option>`).join('')}</select></label>
+      <button class="btn small ghost" id="hAuto">🎲 남은 ${free.length}명 고르게 배정</button><button class="btn small ghost" id="hShuffle">🔀 처음부터 무작위</button><button class="btn small ghost" id="hClear">모두 빼기</button></div>
+    <div class="hgrid">${nums.map(i => { const ms = nOf(i); return `<div class="hg"><div class="hg-h"><b>${i}모둠</b> <span class="dc-muted">${ms.length}명</span>
+        <select data-leader="${i}" title="모둠장"><option value="">👑 모둠장 선택</option>${ms.map(s => `<option value="${s.id}" ${dr.leaders[i] === s.id ? 'selected' : ''}>👑 ${E(s.name)}</option>`).join('')}</select></div>
+        ${modeA ? `<input type="text" data-topic="${i}" maxlength="60" placeholder="A: 이 모둠 주제" value="${LAB.escAttr(topicOf(i))}" style="margin:4px 0">` : ''}
+        <div>${ms.map(s => `<span class="mem">${dr.leaders[i] === s.id ? '👑' : ''}${s.num} ${E(s.name)}<select class="mv" data-hmove="${s.id}"><option value="">↔</option>${nums.filter(x => x !== i).map(x => `<option value="${x}">${x}모둠으로</option>`).join('')}<option value="0">빼기</option></select></span>`).join('') || '<span class="dc-muted">비어 있음</span>'}</div></div>`; }).join('')}</div>
+    <h3 style="margin:12px 0 4px">🧭 아직 모둠 없는 학생 ${free.length}명</h3>
+    <div>${free.map(s => `<span class="mem">${s.num} ${E(s.name)}<select class="mv" data-hmove="${s.id}"><option value="">배정…</option>${nums.map(x => `<option value="${x}">${x}모둠</option>`).join('')}</select></span>`).join('') || '<span class="dc-muted">모두 배정했어요 ✓</span>'}</div>
+    <div class="error-msg" id="hErr"></div><div class="ok-msg" id="hOk"></div>
+    <div class="btn-row" style="margin-top:12px"><button class="btn" id="hSave" ${dirty ? '' : 'disabled'}>💾 편성 저장${dirty ? '' : ' (변경 없음)'}</button>${dirty ? '<button class="btn ghost" id="hUndo">되돌리기</button>' : ''}</div>
+    ${modeA ? '<button class="btn small secondary" id="hTopic" style="margin-top:8px">💾 A: 모둠 주제 저장</button>' : ''}
+    <p class="hint" style="margin-top:8px">👑 모둠장은 ❺에서 HERO 그룹 명을 확정하고, 도움카드로 선생님께 요청하는 역할이에요.</p></div>
+
+  <div class="card"><h2>❶ 모둠별 문제 찾기</h2>${D.groups.map(g => `<div style="margin:6px 0;font-size:0.86rem"><b>${g.no}모둠</b> ${g.hasArea ? `${(LAB.heroArea(g.cat) || {}).icon || ''} <b>${E(g.title)}</b>${g.hero.area.byTeacher ? ' <span class="pill warn">선생님 지정</span>' : ''}` : '<span class="pill no">아직</span>'}
+      <span class="dc-muted">· 개인 문제 ${Object.keys(g.hero.q1 || {}).length}/${g.members.length}명</span> <a target="_blank" href="h1-problem.html${sv(ban, g.id)}">학생 화면</a></div>`).join('')}</div>`;
+  const rer = () => h1();
+  document.getElementById('hn').onchange = e => { dr.n = +e.target.value; Object.keys(dr.leaders).forEach(k => { if (+k > dr.n) delete dr.leaders[k]; }); rer(); };
+  document.querySelectorAll('[data-hmove]').forEach(el => el.onchange = () => {
+    if (!el.value) return; const v = +el.value, sid = el.dataset.hmove;
+    Object.keys(dr.leaders).forEach(k => { if (dr.leaders[k] === sid) delete dr.leaders[k]; });
+    if (v) dr.m[sid] = v; else delete dr.m[sid]; rer();
+  });
+  document.querySelectorAll('[data-leader]').forEach(el => el.onchange = () => { if (el.value) dr.leaders[el.dataset.leader] = el.value; else delete dr.leaders[el.dataset.leader]; rer(); });
+  const spreadH = list => {
+    const cnt = {}; nums.forEach(i => cnt[i] = nOf(i).length);
+    list.slice().sort(() => Math.random() - 0.5).forEach(s => { const min = Math.min(...Object.values(cnt)), c = Object.keys(cnt).filter(k => cnt[k] === min); const k = +c[Math.floor(Math.random() * c.length)]; dr.m[s.id] = k; cnt[k]++; });
+  };
+  document.getElementById('hAuto').onclick = () => { spreadH(free); rer(); };
+  document.getElementById('hShuffle').onclick = () => { if (Object.keys(dr.m).length && !confirm('지금 편성을 모두 지우고 무작위로 다시 나눌까요? (저장 전까지는 학생에게 안 보여요)')) return; dr.m = {}; dr.leaders = {}; spreadH(roster); rer(); };
+  document.getElementById('hClear').onclick = () => { if (confirm('모든 학생을 모둠에서 뺄까요? (저장 전까지는 학생에게 안 보여요)')) { dr.m = {}; dr.leaders = {}; rer(); } };
+  const u = document.getElementById('hUndo'); if (u) u.onclick = () => { hDraft = null; rer(); };
+  document.getElementById('hSave').onclick = async () => {
+    const err = document.getElementById('hErr'); err.classList.remove('show');
+    const moved = Object.keys(saved.m).filter(k => saved.m[k] && saved.m[k] !== dr.m[k]);
+    if (moved.length && !confirm(`이미 모둠이 있던 학생 ${moved.length}명의 모둠이 바뀌어요. 그 학생이 쓴 개인 기록(❶ 내 문제, ❷ 내 질문)은 원래 모둠에 남아요. 저장할까요?`)) return;
+    const m = {}; roster.forEach(s => { const k = dr.m[s.id]; if (k && k <= dr.n) m[s.id] = { no: k, name: s.name, num: s.num }; });
+    const leaders = {}; Object.keys(dr.leaders).forEach(k => { const sid = dr.leaders[k]; if (+k <= dr.n && m[sid] && m[sid].no === +k) leaders[k] = sid; });
+    try {
+      await LAB.put(`team/${ban}`, { _config: { n: dr.n, leaders, at: LAB.TS }, m });
+      hDraft = null; await h1();
+      const ok = document.getElementById('hOk'); ok.textContent = '✓ 편성을 저장했어요. 학생 화면에 바로 보여요.'; ok.classList.add('show');
+    } catch (e) { err.textContent = '저장하지 못했어요.'; err.classList.add('show'); }
+  };
+  document.getElementById('hcSave').onclick = async () => {
+    const mode = (document.querySelector('input[name=hmode]:checked') || {}).value || '';
+    await LAB.put(`heroCfg/${grade}`, { mode, theme: document.getElementById('htheme').value.trim(), period: document.getElementById('hperiod').value.trim(), updatedAt: LAB.TS });
+    await h1(); const ok = document.getElementById('hcOk'); ok.textContent = `✓ ${grade}학년 설정을 저장했어요.`; ok.classList.add('show');
+  };
+  const ht = document.getElementById('hTopic');
+  if (ht) ht.onclick = async () => {
+    const jobs = [];
+    document.querySelectorAll('[data-topic]').forEach(el => { const t = el.value.trim(), gid = 'h' + el.dataset.topic;
+      if (t) jobs.push(LAB.put(`hero/${ban}/${gid}/area`, { cat: 'etc', title: t, story: '', byTeacher: true, by: 'teacher', byName: '선생님', at: LAB.TS })); });
+    await Promise.all(jobs); await h1(); alert('모둠 주제를 저장했어요.');
+  };
+}
+
+// ④ ❹ 숫자 · ❺ 선언 · ❻ 실천 · ❼ 캔바
+async function h4() {
+  const D = await LAB.loadGroups(ban);
+  if (!D.groups.some(g => g.members.length)) { document.getElementById('view').innerHTML = '<div class="empty-state">아직 모둠을 편성하지 않았어요. ①에서 먼저 짜 주세요.</div>'; return; }
+  const t = x => x && x.text ? LAB.nl2br(x.text) : '<span class="dc-muted">–</span>';
+  document.getElementById('view').innerHTML = D.groups.filter(g => g.members.length).map(g => {
+    const H = g.hero || {}, dp = H.declare || {}, pr = H.practice || {}, cv = H.canva || {}, hp = H.help || {}, nc = Object.keys(cv).length;
+    return `<div class="card"><h2>${g.no}모둠 · ${g.heroName ? '🦸 ' + E(g.heroName) + ' · ' : ''}${E(g.title)}</h2>
+      <div style="font-size:0.84rem;line-height:2">❹ 숫자 <span class="pill ${H.memo ? 'ok' : 'no'}">${H.memo ? '✓' : '–'}</span> ❺ 선언 <span class="pill ${dp.problem ? 'ok' : 'no'}">${dp.problem ? '✓' : '–'}</span>
+        그룹 명 <span class="pill ${g.heroName ? 'ok' : 'no'}">${g.heroName ? E(g.heroName) : '–'}</span> ❻ 실천 <span class="pill ${Object.keys(pr).length ? 'ok' : 'no'}">${Object.keys(pr).length}개</span>
+        도움 기록 <span class="pill ${Object.keys(hp).length ? 'ok' : 'no'}">${Object.keys(hp).length}개</span> ❼ 캔바 <span class="pill ${nc >= 20 ? 'ok' : nc ? 'warn' : 'no'}">${nc}칸</span></div>
+      <details style="margin-top:8px;font-size:0.84rem"><summary>내용 펼쳐 보기</summary>
+        <div class="rep-sec"><b>❹ 가장 눈에 띈 숫자</b>${H.memo ? E(H.memo.num) + (H.memo.meaning ? ' → ' + E(H.memo.meaning) : '') : '–'}</div>
+        <div class="rep-sec"><b>❺ 해결할 문제</b>${t(dp.problem)}</div><div class="rep-sec"><b>❺ 근거</b>${t(dp.evidence)}</div>
+        <div class="rep-sec"><b>❻ 고른 방법</b>${t(H.method)}</div><div class="rep-sec"><b>❻ 고른 이유</b>${t(H.methodWhy)}</div>
+        <div class="rep-sec"><b>❻ 실천 기록</b>${Object.values(pr).sort((a, b) => a.at - b.at).map(x => `<div>· ${E(x.date || '')} ${E(x.what || '')} ${x.note ? '— ' + E(x.note) : ''}</div>`).join('') || '–'}</div>
+        <div class="rep-sec"><b>❻ 달라진 점</b>${t(H.change)}</div><div class="rep-sec"><b>❻ 예상과 달랐던 점</b>${t(H.unexpected)}</div>
+        <div class="rep-sec"><b>🙋 도움 받은 기록</b>${Object.values(hp).sort((a, b) => a.at - b.at).map(x => `<div>· ${E(x.date || '')} ${E(x.card || '')} — ${E(x.help || '')}</div>`).join('') || '–'}</div></details>
+      <div class="btn-row" style="margin-top:8px"><a class="btn small ghost" target="_blank" href="h5-declare.html${sv(ban, g.id)}">❺ 화면</a><a class="btn small ghost" target="_blank" href="h6-practice.html${sv(ban, g.id)}">❻ 화면</a><a class="btn small ghost" target="_blank" href="h7-canva.html${sv(ban, g.id)}">❼ 캔바 화면</a></div></div>`;
   }).join('');
 }
 

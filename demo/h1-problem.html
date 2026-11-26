@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<!-- 자동 생성(make-demo.py) — 여기 말고 상위 폴더 원본을 고칠 것 -->
+<meta name="robots" content="noindex">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>문제 찾기</title>
+<link rel="stylesheet" href="../common.css?v=8">
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="../session.js?v=1"></script>
+<script src="../lab.js?v=13"></script>
+<script src="../demo-seed.js?v=3"></script>
+<script src="../hero.js?v=1"></script>
+<script>
+// ❶ 문제 찾기 (1·2학년 광수 HERO) — 학교평가 결과 보기 → 각자 문제+근거 → 모둠 문제 영역·한 줄 문제
+let R, G, ban, base, me, area = null, areaDirty = false;
+const E = LAB.esc;
+
+function render() {
+  const mode = LAB.HERO_MODES[R.cfg.mode], fixed = R.cfg.mode === 'A';
+  document.getElementById('main').innerHTML = LAB.groupBannerHtml(G, ban) + `
+  <div class="card">
+    <h2>🔍 퀘스트 ❶ 문제 찾기</h2>
+    <div class="q-do"><span><b>지금 할 일</b> 문제 영역 고르기</span><span><b>끝나면</b> 모둠별 문제 영역</span></div>
+    <h3 style="margin:14px 0 6px">📊 친구들이 들려준 이야기 <span class="dc-muted" style="font-weight:500;font-size:0.78rem">2026 학교평가 설문(학생 311명)</span></h3>
+    <div class="facts">${LAB.SCHOOL_FACTS.map(f => `<div><b>${f.icon} ${E(f.t)}</b>${E(f.d)}</div>`).join('')}</div>
+    <p class="hint" style="margin:8px 0 0">이 중에서 고르지 않아도 돼요. 우리 모둠 문제는 아래에서 정해요.</p>
+    ${mode ? `<div class="mode-box" style="margin-top:12px">🧭 우리 학년 출발 방식: <span class="m">${R.cfg.mode}. ${E(mode.name)}</span>
+      ${R.cfg.mode === 'B' && R.cfg.theme ? `<div style="margin-top:4px">🎯 우리 학년 핵심 주제: <b>${E(R.cfg.theme)}</b></div>` : ''}</div>` : ''}
+  </div>
+
+  <div class="step-h"><div class="n">1</div><h2>내가 마음에 걸린 문제와 근거<span class="sub">각자 1개 · 모둠원에게 보여요</span></h2></div>
+  <div class="card">
+    <label class="field-label" for="myP">마음에 걸리는 문제</label>
+    <input type="text" id="myP" maxlength="80" placeholder="예) 쉬는 시간에 교실이 너무 시끄러워요">
+    <label class="field-label" for="myE">그렇게 생각한 근거 1개 <span class="dc-muted">직접 본 것 · 숫자 · 겪은 일 · 들은 말</span></label>
+    <textarea id="myE" rows="2" maxlength="300" placeholder="예) 겪은 일: 쉬는 시간에 옆 친구 말이 안 들려서 세 번이나 다시 물어봤다."></textarea>
+    <div class="error-msg" id="myErr"></div><div class="ok-msg" id="myOk"></div>
+    <button class="btn" id="mySave">💾 내 문제 저장하기</button>
+    <h3 style="margin:16px 0 6px">👥 모둠원들이 쓴 문제</h3>
+    <div class="mine-list" id="others"></div>
+  </div>
+
+  <div class="step-h"><div class="n">2</div><h2>우리 모둠 문제 정하기<span class="sub">모둠이 함께 토의해서 하나로</span></h2></div>
+  <div class="card" id="areaCard"></div>`;
+  document.getElementById('mySave').onclick = saveMine;
+  paintArea(fixed);
+}
+
+function paintOthers(q1) {
+  q1 = q1 || {};
+  document.getElementById('others').innerHTML = G.members.map(m => {
+    const d = q1[m.id];
+    return `<div class="it"><span class="w">${m.leader ? '👑' : ''}${E(m.name)}${m.id === me ? ' (나)' : ''}</span> ${d ? `<b>${E(d.problem)}</b><br><span class="dc-muted">근거: ${E(d.evidence || '–')}</span>` : '<span class="dc-muted">아직 안 씀</span>'}</div>`;
+  }).join('');
+}
+
+function paintArea(fixed) {
+  const box = document.getElementById('areaCard'), a = area || {};
+  if (fixed && a.byTeacher) {
+    box.innerHTML = `<div class="mode-box">👩‍🏫 선생님이 정해 준 우리 모둠 주제<div style="font-size:1.05rem;font-weight:900;margin-top:4px">${E(a.title)}</div>${a.story ? `<div class="hint" style="margin-top:4px">${LAB.nl2br(a.story)}</div>` : ''}</div>
+      <p class="hint" style="margin-top:8px">이 주제 안에서 2단계 ❷ 설문 문항을 만들어요.</p>`;
+    return;
+  }
+  if (fixed) { box.innerHTML = '<div class="empty-state">선생님이 우리 모둠 주제를 정해 주실 거예요.</div>'; return; }
+  box.innerHTML = `
+    <div class="notice-h" id="areaNt"></div>
+    <label class="field-label">문제 영역</label>
+    <div class="cat-chips">${LAB.HERO_AREAS.map(c => `<label title="${LAB.escAttr(c.ex)}"><input type="radio" name="cat" value="${c.id}" ${a.cat === c.id ? 'checked' : ''}><span>${c.icon} ${E(c.name)}</span></label>`).join('')}</div>
+    <label class="field-label" for="aT">우리 모둠 문제 한 줄</label>
+    <input type="text" id="aT" maxlength="60" placeholder="예) 쉬는 시간 교실 소리 때문에 친구 말이 안 들려요" value="${LAB.escAttr(a.title || '')}">
+    <label class="field-label" for="aS">왜 이 문제를 골랐나요? <span class="dc-muted">(선택)</span></label>
+    <textarea id="aS" rows="2" maxlength="300" placeholder="예) 모둠원 4명 중 3명이 비슷한 일을 겪었다.">${E(a.story || '')}</textarea>
+    <div class="error-msg" id="aErr"></div><div class="ok-msg" id="aOk"></div>
+    <button class="btn" id="aSave">💾 우리 모둠 문제 저장</button>
+    <div class="hf-last" id="aLast" style="display:block;margin-top:6px">${a.title ? '마지막 저장: ' + E(a.byName) + ' · ' + LAB.fmtTime(a.at) : '아직 정하지 않았어요'}</div>
+    ${R.cfg.mode === 'B' && R.cfg.theme ? `<p class="hint" style="margin-top:8px">🎯 우리 학년 핵심 주제 <b>${E(R.cfg.theme)}</b>와 이어지는 문제로 골라요.</p>` : ''}`;
+  box.querySelectorAll('input,textarea').forEach(el => el.addEventListener('input', () => areaDirty = true));
+  box.querySelectorAll('input[name=cat]').forEach(el => el.addEventListener('change', () => areaDirty = true));
+  document.getElementById('aSave').onclick = saveArea;
+}
+
+async function saveMine() {
+  const p = document.getElementById('myP').value.trim(), ev = document.getElementById('myE').value.trim();
+  const err = document.getElementById('myErr'), ok = document.getElementById('myOk'); err.classList.remove('show'); ok.classList.remove('show');
+  if (LAB.student.isTeacher) { err.textContent = '교사 보기에서는 저장하지 않아요.'; return err.classList.add('show'); }
+  if (!p) { err.textContent = '마음에 걸리는 문제를 써 주세요.'; return err.classList.add('show'); }
+  if (!ev) { err.textContent = '근거를 1개 써 주세요.'; return err.classList.add('show'); }
+  try {
+    await LAB.put(`${base}/q1/${me}`, { problem: p, evidence: ev, name: LAB.student.name, at: LAB.TS });
+    ok.textContent = '✓ 저장했어요. 모둠원에게 보여요.'; ok.classList.add('show');
+    paintOthers(await LAB.get(`${base}/q1`));
+  } catch (e) { err.textContent = '저장하지 못했어요. 다시 눌러 주세요.'; err.classList.add('show'); }
+}
+
+async function saveArea() {
+  const c = document.querySelector('input[name=cat]:checked'), t = document.getElementById('aT').value.trim(), st = document.getElementById('aS').value.trim();
+  const err = document.getElementById('aErr'), ok = document.getElementById('aOk'); err.classList.remove('show'); ok.classList.remove('show');
+  if (!c) { err.textContent = '문제 영역을 골라 주세요.'; return err.classList.add('show'); }
+  if (t.length < 5) { err.textContent = '우리 모둠 문제를 한 줄로 써 주세요.'; return err.classList.add('show'); }
+  const cur = await LAB.get(`${base}/area`);
+  if (cur && area && cur.at !== area.at && cur.by !== me && !confirm(`${cur.byName}이(가) 그사이 모둠 문제를 고쳤어요. 내 내용으로 덮어쓸까요?`)) { area = cur; areaDirty = false; return paintArea(false); }
+  const H0 = HERO.me();
+  try {
+    await LAB.put(`${base}/area`, { cat: c.value, title: t, story: st, by: H0.id, byName: H0.name, at: LAB.TS });
+    area = await LAB.get(`${base}/area`); areaDirty = false;
+    ok.textContent = '✓ 우리 모둠 문제를 저장했어요. 이제 2단계 ❷ 설문 문항 만들기로 가요!'; ok.classList.add('show');
+    document.getElementById('aLast').textContent = '마지막 저장: ' + area.byName + ' · ' + LAB.fmtTime(area.at);
+  } catch (e) { err.textContent = '저장하지 못했어요. 다시 눌러 주세요.'; err.classList.add('show'); }
+}
+
+async function poll() {
+  const [q1, a] = await Promise.all([LAB.get(`${base}/q1`), LAB.get(`${base}/area`)]);
+  paintOthers(q1);
+  if (JSON.stringify(a) !== JSON.stringify(area)) {
+    if (!areaDirty) { area = a; paintArea(R.cfg.mode === 'A'); }
+    else { const n = document.getElementById('areaNt'); if (n && a) { n.innerHTML = `✏️ <b>${E(a.byName)}</b>이(가) 방금 모둠 문제를 저장했어요: "${E(a.title)}"`; n.classList.add('show'); } }
+  }
+}
+
+HERO.boot({ heroStage: 1, title: '문제 찾기', subtitle: '우리 학교에서 불편한 점을 찾아요. 모둠이 해결할 문제를 하나 정해요.' }).then(async r => {
+  R = r; ban = r.ban; G = r.group; base = r.base; me = LAB.student.id;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban, r.data, G));
+  if (!LAB.isHero(ban)) { document.getElementById('main').innerHTML = '<div class="card center">이 화면은 1·2학년 광수 HERO용이에요. 3학년은 <a href="s1-board.html">1단계 문제 게시판</a>을 써요.</div>'; return; }
+  if (!G) { document.getElementById('main').innerHTML = LAB.noGroupHtml(); return; }
+  const [q1, a] = await Promise.all([LAB.get(`${base}/q1`), LAB.get(`${base}/area`)]);
+  area = a; render(); paintOthers(q1);
+  const mine = (q1 || {})[me]; if (mine) { document.getElementById('myP').value = mine.problem || ''; document.getElementById('myE').value = mine.evidence || ''; }
+  HERO.poll(poll);
+});
+</script>
+</body>
+</html>

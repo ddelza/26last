@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>설문 결과 확인하기</title>
-<link rel="stylesheet" href="common.css?v=7">
+<link rel="stylesheet" href="common.css?v=8">
 <style>
 .part { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; text-align: center; }
 .part div { background: #f8f9fa; border-radius: 10px; padding: 8px 4px; font-size: 0.74rem; color: #555; }
@@ -16,19 +16,75 @@
 .gf button.on { background: var(--stage); color: #fff; border-color: var(--stage); }
 .mine-tag { display: inline-block; background: var(--stage); color: #fff; font-size: 0.7rem; font-weight: 800; border-radius: 6px; padding: 1px 7px; }
 .think ol { padding-left: 20px; margin: 4px 0 0; font-size: 0.86rem; line-height: 1.8; }
+.findbox { display: flex; gap: 8px; align-items: center; }
+.findbox input { flex: 1; }
+@media print {
+  body * { visibility: hidden; }
+  #resCard, #resCard * { visibility: visible; }
+  #resCard { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; }
+  #resCard .gf, #resCard #csv, #resCard #prt, #resCard details:not([open]) summary { display: none !important; }
+  #resCard details { display: block; } #resCard details > * { display: block; }
+  .help-fab, .admin-fab, .demo-ribbon { display: none !important; }
+}
+.print-head { display: none; } @media print { .print-head { display: block; font-size: 0.8rem; color: #495057; margin-bottom: 6px; } }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div id="lab-head"></div>
+  <div id="find"></div>
   <div id="main"><div class="loading-state">불러오는 중...</div></div>
+  <div id="memoBox"></div>
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=12"></script>
+<script src="lab.js?v=13"></script>
 <script>
 let items = [], resps = {}, cur = 0, grade = '', myKey = null, roster = {};
 
+let hero = false, findQ = '';
+// 찾기: 반·모둠 번호·문제·질문 글자 (입력칸은 다시 그리지 않고 목록만 바꿈 — 한글 조합 깨짐 방지)
+function match(x) {
+  if (!findQ) return true;
+  const hay = `${LAB.banLabel(x.ban)} ${LAB.banShort(x.ban)} ${x.out.no}모둠 ${x.out.title || ''} ${x.q.q}`.replace(/\s+/g, '');
+  return findQ.split(/\s+/).filter(Boolean).every(w => hay.includes(w));
+}
+function optsHtml() {
+  const list = items.map((x, i) => [x, i]).filter(([x, i]) => i === cur || match(x));
+  return list.map(([x, i]) => `<option value="${i}" ${i === cur ? 'selected' : ''}>${x.key === myKey ? '⭐ 우리 모둠 — ' : ''}${LAB.banShort(x.ban)} ${x.out.no}모둠 · ${LAB.esc(x.q.q.slice(0, 40))}</option>`).join('');
+}
+function paintFind() {
+  document.getElementById('find').innerHTML = `<div class="card"><label class="field-label" for="fq">🔎 모둠 찾기</label>
+    <div class="findbox"><input type="text" id="fq" placeholder="예) 2-3 2모둠, 급식, 복도" autocomplete="off">${myKey ? '<button class="btn small ghost" id="mine">⭐ 우리 모둠</button>' : ''}</div>
+    <div class="hint" id="fqN" style="margin-top:4px"></div></div>`;
+  const fq = document.getElementById('fq');
+  fq.addEventListener('input', () => {
+    findQ = fq.value.replace(/모둠/g, '모둠 ').trim();
+    const hits = items.filter(match);
+    document.getElementById('fqN').textContent = findQ ? `찾은 질문 ${hits.length}개` + (hits.length ? ' — 아래 목록에서 골라요' : '') : '';
+    if (findQ && hits.length && !match(items[cur])) { cur = items.indexOf(hits[0]); render(); }
+    else { const s = document.getElementById('sel'); if (s) s.innerHTML = optsHtml(); }
+  });
+  const mb = document.getElementById('mine'); if (mb) mb.onclick = () => { const i = items.findIndex(x => x.key === myKey); if (i >= 0) { cur = i; fq.value = ''; findQ = ''; render(); } };
+}
+async function paintMemo(base) {
+  const m = (await LAB.get(`${base}/memo`)) || {};
+  document.getElementById('memoBox').innerHTML = `<div class="card"><h2>📝 퀘스트 ❹ 가장 눈에 띈 숫자 1개와 그 뜻</h2>
+    <p class="hint">다른 모둠 문항 결과를 써도 돼요. 여기 쓴 내용이 ❺ 선언문의 근거로 이어져요.</p>
+    <div class="tip" style="margin-bottom:8px">🤖 <b>[방법 2] AI로 새로 분석해도 돼요.</b> 위 "응답 내려받기(CSV)" 파일을 AI 챗봇에 넣어 분석할 수 있어요. <b>AI가 알려 준 숫자는 원본 표와 맞는지 꼭 다시 봐요.</b></div>
+    <label class="field-label" for="mNum">가장 눈에 띈 숫자</label><input type="text" id="mNum" maxlength="120" placeholder="예) 126명 중 90명(71%)이 4점 이상" value="${LAB.escAttr(m.num || '')}">
+    <label class="field-label" for="mMean">그 숫자의 뜻</label><textarea id="mMean" rows="2" maxlength="300" placeholder="예) 우리 학교 친구 대부분이 쉬는 시간 소리를 불편해한다.">${LAB.esc(m.meaning || '')}</textarea>
+    <div class="error-msg" id="mErr"></div><div class="ok-msg" id="mOk"></div>
+    <button class="btn" id="mSave">💾 숫자 메모 저장</button>
+    <div class="hf-last" style="display:block;margin-top:6px">${m.num ? '마지막 저장: ' + LAB.esc(m.byName) + ' · ' + LAB.fmtTime(m.at) : ''}</div></div>`;
+  document.getElementById('mSave').onclick = async () => {
+    const num = document.getElementById('mNum').value.trim(), meaning = document.getElementById('mMean').value.trim(), err = document.getElementById('mErr'), ok = document.getElementById('mOk');
+    err.classList.remove('show'); ok.classList.remove('show');
+    if (!num) { err.textContent = '숫자를 써 주세요.'; return err.classList.add('show'); }
+    try { await LAB.put(`${base}/memo`, { num, meaning, by: LAB.student.id, byName: LAB.student.isTeacher ? LAB.student.name + ' 선생님' : LAB.student.name, at: LAB.TS }); ok.textContent = '✓ 저장했어요. 이제 ❺ 선언으로 가요!'; ok.classList.add('show'); }
+    catch (e) { err.textContent = '저장하지 못했어요.'; err.classList.add('show'); }
+  };
+}
 function render() {
   const it = items[cur], mine = it.key === myKey;
   const respondents = Object.values(resps).filter(r => r && r.answers && Object.keys(r.answers).length);
@@ -40,16 +96,17 @@ function render() {
 
     <div class="card">
       <label class="field-label">어떤 질문의 결과를 볼까요?</label>
-      <select id="sel">${items.map((x, i) => `<option value="${i}" ${i === cur ? 'selected' : ''}>${x.key === myKey ? '⭐ 우리 모둠 — ' : ''}${LAB.banShort(x.ban)} ${x.out.no}모둠 · ${LAB.esc(x.q.q.slice(0, 40))}</option>`).join('')}</select>
+      <select id="sel">${optsHtml()}</select>
     </div>
 
-    <div class="card">
+    <div class="card" id="resCard">
+      <div class="print-head">광수 HERO · 전교생 설문 결과 · ${LAB.esc(LAB.banLabel(it.ban))} ${it.out.no}모둠${it.out.title ? ' · ' + LAB.esc(it.out.title) : ''}</div>
       ${mine ? '<span class="mine-tag">⭐ 우리 모둠 질문</span>' : ''}
       <div class="qhead">${LAB.nl2br(it.q.q)}</div>
       <div class="qsub">${LAB.esc(LAB.banShort(it.ban))} ${it.out.no}모둠 · ${LAB.QTYPES[it.out.which].icon} ${LAB.QTYPES[it.out.which].name}${it.out.q && it.out.q.focus ? ' (' + LAB.focusTag(it.out.q.focus) + ')' : ''} · 문제: ${LAB.esc(it.out.title)}</div>
       <div class="gf">${['', 1, 2, 3].map(g => `<button data-g="${g}" class="${String(grade) === String(g) ? 'on' : ''}">${g ? g + '학년만' : '전교생 전체'}</button>`).join('')}</div>
       ${LAB.resultHtml(it.q, resps, it.key, { grade })}
-      <button class="btn ghost small" style="margin-top:12px" id="csv">⬇️ 이 질문 응답 내려받기 (엑셀·CSV)</button>
+      <div class="btn-row" style="margin-top:12px"><button class="btn ghost small" id="csv">⬇️ 이 질문 응답 내려받기 (엑셀·CSV)</button><button class="btn ghost small" id="prt">🖨 이 결과 인쇄하기</button></div>
     </div>
 
     ${mine ? `<div class="card think"><h2>🔎 결과를 보며 모둠에서 이야기해 봐요</h2><ol>
@@ -57,7 +114,8 @@ function render() {
       <li><b>예상과 같았던 점</b>과 <b>예상과 달랐던 점</b>은?</li>
       <li><b>학년별로 차이</b>가 있나요? 왜 그럴까요?</li>
       <li>이 결과로 "우리 문제가 진짜 있다 / 이런 해결책을 원한다"고 <b>말할 수 있나요?</b> 부족한 점(한계)은?</li>
-      <li>결과를 보고 떠오른 <b>해결 방안</b>은? → <a href="s4-report.html">4단계 보고서</a>에 바로 적어요.</li></ol></div>` : ''}`;
+      <li>결과를 보고 떠오른 <b>해결 방안</b>은? → ${hero ? '아래에 <b>가장 눈에 띈 숫자 1개</b>를 적고 <a href="h5-declare.html">❺ 선언</a>으로 가요.' : '<a href="s4-report.html">4단계 보고서</a>에 바로 적어요.'}</li></ol></div>` : ''}`;
+  document.getElementById('prt').onclick = () => { document.querySelectorAll('#resCard details').forEach(d => d.open = true); window.print(); };
   document.getElementById('sel').onchange = e => { cur = +e.target.value; render(); };
   document.querySelectorAll('.gf button').forEach(b => b.onclick = () => { grade = b.dataset.g; render(); });
   document.getElementById('csv').onclick = () => {
@@ -65,7 +123,7 @@ function render() {
     Object.values(resps).forEach(r => {
       const a = r && r.answers && r.answers[it.key];
       if (!LAB.isAnswered(q, a)) return;
-      let t = q.type === 'open' ? a : (a.sel || []).map(i => q.options[i]).concat(a.etc && a.etc.trim() ? ['기타: ' + a.etc.trim()] : []).join(' / ');
+      const t = LAB.ansText(q, a);
       rows.push([r.grade, r.ban, t]);
     });
     rows.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
@@ -73,7 +131,7 @@ function render() {
   };
 }
 
-LAB.start({ stage: 3, title: '설문 결과 확인하기', subtitle: '우리 질문에 전교생이 어떻게 답했는지 숫자와 말로 확인해요.' }).then(async () => {
+LAB.start({ stage: 3, heroStage: 2, title: '설문 결과 확인하기', subtitle: '우리 질문에 전교생이 어떻게 답했는지 숫자와 말로 확인해요.' }).then(async () => {
   const [sc, fin, rs, ro] = await Promise.all([LAB.get('survey/_config'), LAB.get('final'), LAB.get('resp'), LAB.roster()]);
   roster = ro;
   if (!LAB.student.isTeacher && !(sc && sc.results)) {
@@ -86,7 +144,14 @@ LAB.start({ stage: 3, title: '설문 결과 확인하기', subtitle: '우리 질
     const r = await LAB.resolveMyGroup();
     if (r.group) { myKey = LAB.qkey(r.ban, r.group.id); const i = items.findIndex(x => x.key === myKey); if (i >= 0) cur = i; }
   } else if (LAB.qs('key')) { const i = items.findIndex(x => x.key === LAB.qs('key')); if (i >= 0) cur = i; }
+  paintFind();
   render();
+  // 1·2학년: ❹ 숫자 메모 (교사는 ?ban=1-1&g=h1 로 그 모둠 메모를 볼 수 있음)
+  const hb = LAB.student.isTeacher ? LAB.qs('ban') : LAB.myBan();
+  if (LAB.isHero(hb)) {
+    const r = await LAB.resolveMyGroup();
+    if (r.group) { hero = true; if (!myKey) { myKey = LAB.qkey(r.ban, r.group.id); } render(); paintMemo(`hero/${r.ban}/${r.group.id}`); }
+  }
 });
 </script>
 </body>

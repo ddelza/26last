@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>돌아보고 캔바 틀 채우기</title>
+<link rel="stylesheet" href="common.css?v=8">
+<style>
+.pg { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+.pg > h3 { margin: 0 0 2px; font-size: 1rem; display: flex; align-items: center; gap: 8px; }
+.pg > h3 .pn { background: var(--stage); color: #fff; border-radius: 6px; padding: 1px 8px; font-size: 0.72rem; }
+.pg > .d { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; }
+.pg .auto { background: #f3f0ff; border-radius: 10px; padding: 8px 12px; font-size: 0.86rem; margin: 8px 0; }
+.toc { display: flex; flex-wrap: wrap; gap: 6px; }
+.toc a { font-size: 0.78rem; background: #fff0f6; color: #a61e4d; border-radius: 999px; padding: 4px 10px; text-decoration: none; font-weight: 700; }
+#allTxt { width: 100%; font-size: 0.82rem; font-family: inherit; }
+.vision { font-size: 0.8rem; line-height: 1.6; background: #f8f9fa; border-radius: 10px; padding: 8px 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="session.js?v=1"></script>
+<script src="lab.js?v=13"></script>
+<script src="hero.js?v=1"></script>
+<script>
+// ❼ 돌아보고 정리하기 — 캔바 결과 발표 틀의 쪽 순서대로 칸을 채운다. 앞 퀘스트에서 쓴 내용은 "앞에서 쓴 내용 넣기"로 가져온다.
+let R, G, ban, base, HD = {}, OUT = null, F = {};
+const E = LAB.esc;
+const T = k => { const d = HD[k]; return d && d.text ? d.text : ''; };
+const decl = () => HD.declare || {};
+const listTxt = (o, cols) => Object.values(o || {}).sort((a, b) => a.at - b.at).map(x => cols.map(c => x[c]).filter(Boolean).join(' · ')).join('\n');
+const NOAI = '(인공지능 말투 피하세요.)';
+const TITLE = (ex) => ({ k: 'title', label: '결론 제목 — 이 쪽에서 하고 싶은 말을 한 문장으로', ph: '예) ' + ex, rows: 1, hint: '듣는 사람이 바로 알아듣게, 우리 말로 써요. ' + NOAI });
+const PAGES = [
+  { id: 'order', no: '2쪽', name: '디자인 주문서', d: '1쪽 견본처럼 원하는 모습을 적어요. 학년·반·이름은 쓰지 않아요. 이 주문서로 캔바 디자인이 만들어져요.', fields: [
+    { k: 'mood', label: '발표 분위기 한 줄', rows: 1, ph: '예) 방송국 스튜디오에서 전하는 교실 소리 리포트' },
+    { k: 'font', label: '글씨체', rows: 1, ph: '예) 제목은 아주 굵게, 본문은 깔끔하게' },
+    { k: 'color', label: '색', rows: 1, ph: '예) 진한 보라 바탕에 주황·민트로 강조' },
+    { k: 'words', label: '떠오르는 낱말 3개', rows: 1, ph: '예) 방송, 볼륨, 무대 조명' },
+    { k: 'bg', label: '배경', rows: 1, ph: '예) 어두운 방송 스튜디오' },
+    { k: 'pic', label: '넣고 싶은 그림', rows: 1, ph: "예) 소리 조절 장치(믹서), '방송 중' 램프" },
+    { k: 'must', label: '꼭 넣고 싶은 것', rows: 1, ph: '예) 설문 그래프를 크게' },
+    { k: 'avoid', label: '피하고 싶은 것', rows: 1, ph: '예) 글자가 빽빽한 쪽, 너무 많은 색' },
+    { k: 'links', label: '참고할 디자인 링크 1~3', rows: 2, ph: '마음에 드는 디자인의 주소(https://...)를 한 줄에 하나씩' },
+    { k: 'img', label: '꼭 넣고 싶은 이미지', rows: 1, ph: '예) 방송국 스튜디오 사진, 믹서 그림 (저작권 유의!)' }] },
+  { id: 'cover', no: '3쪽', name: '표지', fields: [
+    { k: 'title', label: '발표 제목', rows: 1, ph: '예) 우리의 쉬는 시간, 교실도 쉬는 시간', hint: '듣는 사람이 궁금해지는 한 줄. ' + NOAI },
+    { k: 'oneline', label: '우리 모둠이 해결한 문제 한 줄', rows: 1, ph: '예) 쉬는 시간 소리 때문에 친구 말이 안 들리는 교실', src: () => (decl().problem || {}).text || (G.hasArea ? G.title : '') }] },
+  { id: 'found', no: '4쪽', name: '발견한 문제', fields: [TITLE('쉬는 시간 교실, 친구 말이 안 들린다'),
+    { k: 'claim', label: '무엇이 문제인가요? (주장)', rows: 2, ph: '예) 쉬는 시간 교실이 시끄러워 쉬고 싶은 친구도, 말하고 싶은 친구도 불편하다.', src: () => [G.hasArea ? G.title : '', (HD.area || {}).story].filter(Boolean).join('\n') },
+    { k: 'how', label: '어떻게 발견했나요? (근거)', rows: 3, hint: '근거는 ① 직접 본 것 ② 숫자 ③ 겪은 일 ④ 들은 말 가운데서 골라요. 두 가지를 함께 쓰면 더 단단해요.', ph: "예) 숫자: 학교평가 설문(311명)에서 바꾸고 싶은 일 1위가 '함께 쓰는 공간과 규칙'이었다.",
+      src: () => Object.values(HD.q1 || {}).map(x => `${x.problem} — ${x.evidence}`).join('\n') }] },
+  { id: 'q', no: '5쪽', name: '설문 문항', fields: [TITLE('친구들이 쉬는 시간 소리를 얼마나 불편해하는지 알고 싶었다'),
+    { k: 'text', label: '문항 원문', rows: 3, hint: '❷에서 만든 문항을 보기나 점수(1~6점)까지 그대로 옮겨요.', src: () => OUT && OUT.q ? OUT.q.q + '\n(' + (OUT.q.type === 'open' ? '직접 쓰기' : (OUT.q.options || []).join(' / ')) + ')' : '' },
+    { k: 'kind', label: '문항 종류와 알고 싶었던 것', rows: 2, hint: '① 심각성 ② 원인 ③ 선호·의견 ④ 아이디어 ⑤ 효과 확인 가운데 우리 문항에 맞는 것과, 알고 싶었던 것·이유를 써요.',
+      ph: '예) ① 심각성 / 불편한 친구가 정말 많은지 숫자로 알고 싶었다. ~하기 때문이다.', src: () => OUT && OUT.q ? `${OUT.q.focus ? LAB.focusTag(OUT.q.focus) + ' / ' : ''}${OUT.reason || ''}` : '' }] },
+  { id: 'res', no: '6쪽', name: '설문 결과', fields: [TITLE('10명 중 7명, 쉬는 시간 교실 소리가 불편하다'),
+    { k: 'which', label: '어떤 문항이고, 몇 명이 답했나요?', rows: 2, hint: "우리 모둠 문항도, 다른 모둠 문항도 좋아요. 응답 수는 'N=126'처럼 써요. 그래프는 ❹ 결과 화면을 캡처해서 캔바에 넣어요.", ph: '예) 우리 모둠 ① 심각성 문항, N=126' },
+    { k: 'num', label: '가장 중요한 숫자 1~2개', rows: 2, ph: "예) 126명 중 90명(71%)이 '심각하다' 쪽에 응답", src: () => (HD.memo || {}).num || '' },
+    { k: 'mean', label: '이 숫자가 뜻하는 것', rows: 2, ph: '예) 불편한 친구가 대부분이다. 원인 1위가 의자·책상 소리(38%)라 의자부터 바꿀 만하다.', src: () => (HD.memo || {}).meaning || '' }] },
+  { id: 'decl', no: '7쪽', name: '우리 모둠이 정한 문제', fields: [TITLE('서로의 목소리가 들리는 교실을 만든다'),
+    { k: 'say', label: '선언', rows: 2, hint: '❺에서 쓴 선언문을 그대로 옮기고, 끝에 HERO 그룹 명을 붙여요.', src: () => (decl().problem || {}).text ? `“우리는 ${decl().problem.text}를 해결하겠습니다!” — ${G.heroName || '[HERO 그룹 명]'}` : '' },
+    { k: 'ev', label: '근거', rows: 2, ph: "예) 126명 중 90명(71%)이 4점 이상 '불편하다'.", src: () => (decl().evidence || {}).text || '' }] },
+  { id: 'method', no: '8쪽', name: '해 본 해결 방법', fields: [TITLE('소리가 시작되는 의자 다리부터 막았다'),
+    { k: 'what', label: '어떤 방법을 골랐나요?', rows: 2, src: () => T('method') },
+    { k: 'why', label: '이 방법을 고른 이유', rows: 2, src: () => T('methodWhy') }] },
+  { id: 'practice', no: '9쪽', name: '실천 기록과 달라진 점', fields: [TITLE("3주 뒤, '불편하다'가 74%에서 45%로"),
+    { k: 'when', label: '언제·어디서·누구와·무엇을', rows: 3, hint: '몇 번 했는지도 써요. 함께한 사람은 이름 대신 역할로 써요.', src: () => listTxt(HD.practice, ['date', 'what', 'note']) },
+    { k: 'change', label: '달라진 점', rows: 2, src: () => T('change') },
+    { k: 'unexp', label: '예상과 달랐던 점', rows: 2, src: () => T('unexpected') }] },
+  { id: 'learn', no: '10쪽', name: '돌아보기 ① 배운 점', fields: [TITLE('소리를 줄이자 서로의 말이 들렸다'),
+    { k: 'power', label: '우리는 1년 동안 배운 것 중 어떤 역량을 발휘했나요?', rows: 2, hint: "11쪽 비전 표에서 우리 활동과 맞닿는 말(예: '시행착오에서 배우기')을 찾아 넣어 보세요.", ph: '예) 시끄럽다는 건 우리만의 생각이 아니라 10명 중 7명의 생각이었다.' },
+    { k: 'helped', label: '우리 실천은 누구에게 도움이 됐나요?', rows: 2, ph: '예) 쉬는 시간에 쉬고 싶은 친구들, 다음 수업 선생님' },
+    { k: 'mistake', label: '실수나 잘 안 된 것에서 나는 무엇을 배웠나요?', rows: 2 }] },
+  { id: 'vision', no: '12쪽', name: '돌아보기 ② 가치와 비전', fields: [TITLE('과학 원리를 배워 우리 교실을 바꿨다'),
+    { k: 'value', label: '내가 배운 것을 어디에 가치 있게 썼나요?', rows: 2, hint: '교과뿐 아니라 동아리·생활에서 익힌 것도 좋아요.', ph: '예) 수학의 비율로 전후 결과를 비교하고, 국어의 설득하는 글로 신호등 카드 문구를 썼다.' },
+    { k: 'link', label: "우리 활동은 '배움이 즐거운 · 마을공동체 · 평화학교' 중 어디와 어떻게 연결되나요?", rows: 2, ph: '예) 평화학교: 목소리가 들리니 날 선 말이 줄고, 쉬는 시간에 부탁하는 말이 늘었다.' }] },
+  { id: 'help', no: '13쪽', name: '도움 받은 기록 · 고마운 분', fields: [TITLE('막힐 때 도움카드로 다시 출발했다'),
+    { k: 'log', label: '도움 기록', rows: 3, hint: '날짜 · 고른 도움카드 · 받은 도움 순서로 한 줄씩 써요.', src: () => listTxt(HD.help, ['date', 'card', 'help']) },
+    { k: 'thanks', label: '고마운 분', rows: 2, hint: '학생은 이름 대신 역할로 써요. 선생님께는 허락을 받고 이름을 써도 돼요.', ph: '예) 덮개를 함께 붙인 옆 교실 친구들, ~을 해 주신 선생님' }] },
+];
+
+function render() {
+  document.getElementById('main').innerHTML = LAB.groupBannerHtml(G, ban) + `
+  <div class="card">
+    <h2>🎤 퀘스트 ❼ 돌아보고 정리하기</h2>
+    <div class="q-do"><span><b>지금 할 일</b> 캔바 틀 채우기</span><span><b>끝나면</b> 캔바 슬라이드, 발표 연습</span></div>
+    <p class="hint" style="margin:10px 0 6px">캔바 결과 발표 틀의 쪽 순서대로 칸이 있어요. <b>⬇ 앞에서 쓴 내용 넣기</b>를 누르면 ❶~❻에서 쓴 내용이 들어와요. 다 채우면 맨 아래에서 <b>한 번에 복사</b>해 캔바에 붙여 넣어요.</p>
+    <div class="tip">🦸 <b>HERO 그룹 명만 쓰고 학년·반·이름은 쓰지 않아요.</b> 우리 그룹 명: <b>${E(G.heroName || '아직 없음 — ❺에서 정해요')}</b></div>
+    <div class="toc" style="margin-top:10px">${PAGES.map(p => `<a href="#pg_${p.id}">${p.no} ${p.name}</a>`).join('')}</div>
+  </div>
+  ${PAGES.map(p => `<div class="pg" id="pg_${p.id}"><h3><span class="pn">${p.no}</span>${p.name}</h3>${p.d ? `<div class="d">${p.d}</div>` : ''}<div id="pf_${p.id}"></div></div>`).join('')}
+  <div class="card" id="vis"><h2>🏫 학교 비전 표 (캔바 11쪽 · 돌아보기를 쓸 때 보세요)</h2><div class="vision">
+    <b>배움이 즐거운 마을공동체 평화학교</b><br>
+    <b>1학년</b> 깊이 생각하며 함께 성장하는 '나' — 지혜롭게 판단하기 · 다양한 관점 이해하기 · 시행착오에서 배우기<br>
+    <b>2학년</b> 더불어 소통하며 탐구하는 '우리' — 창의적으로 문제 해결하기 · 존중하며 소통하기 · 질문을 통해 탐구하기<br>
+    <b>3학년</b> 서로 협력하며 가치를 만드는 '시민' — 서로 존중하며 협력하기 · 사회적 책임 실천하기 · 새로운 가치 발견하기</div></div>
+  <div class="card"><h2>📋 캔바에 붙여 넣을 글 한 번에 모으기</h2>
+    <p class="hint">저장한 칸을 쪽 순서대로 모아요. 복사해서 캔바 틀(또는 담당 선생님께 보낼 주문서)에 붙여 넣어요.</p>
+    <button class="btn" id="gather">📋 모아서 복사하기</button>
+    <textarea id="allTxt" rows="12" readonly style="margin-top:10px;display:none"></textarea>
+    <div class="ok-msg" id="cpOk"></div></div>`;
+  PAGES.forEach(p => {
+    const box = document.getElementById('pf_' + p.id);
+    if (p.id === 'cover') box.insertAdjacentHTML('beforeend', `<div class="auto">🦸 HERO 그룹 명: <b>${E(G.heroName || '(❺에서 정해요)')}</b></div>`);
+    p.fields.forEach(f => { F[p.id + '_' + f.k] = HERO.field(box, Object.assign({}, f, { path: `${base}/canva/${p.id}_${f.k}` })); });
+  });
+  document.getElementById('gather').onclick = gather;
+}
+
+function gather() {
+  const lines = [`[광수 HERO 결과 발표] HERO 그룹 명: ${G.heroName || ''}`, ''];
+  PAGES.forEach(p => {
+    lines.push(`■ ${p.no} ${p.name}`);
+    p.fields.forEach(f => { const v = HERO.fieldText(F[p.id + '_' + f.k]).trim(); lines.push(`${f.label.split(' — ')[0]}: ${v}`); });
+    if (p.id === 'cover') lines.push(`HERO 그룹 명: ${G.heroName || ''}`);
+    lines.push('');
+  });
+  const t = lines.join('\n'), ta = document.getElementById('allTxt'); ta.value = t; ta.style.display = 'block';
+  const ok = document.getElementById('cpOk');
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => { ok.textContent = '✓ 복사했어요. 캔바에 붙여 넣어요. (저장 안 한 칸은 지금 화면에 쓴 그대로 들어가요)'; ok.classList.add('show'); })
+    .catch(() => { ta.select(); ok.textContent = '아래 글을 길게 눌러 복사해 주세요.'; ok.classList.add('show'); });
+}
+
+async function loadSrc() {
+  const [h, out] = await Promise.all([LAB.get(base), LAB.get(`final/${ban}/${G.id}/out`)]);
+  HD = h || {}; OUT = out && out.submitted ? out : out || null;
+}
+
+HERO.boot({ heroStage: 4, title: '돌아보고 캔바 틀 채우기', subtitle: '문제, 근거, 해 본 결과를 캔바 발표 자료로 정리해요.' }).then(async r => {
+  R = r; ban = r.ban; G = r.group; base = r.base;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban, r.data, G));
+  if (!LAB.isHero(ban)) { document.getElementById('main').innerHTML = '<div class="card center">이 화면은 1·2학년 광수 HERO용이에요. 3학년은 <a href="s4-report.html">4단계 보고서</a>를 써요.</div>'; return; }
+  if (!G) { document.getElementById('main').innerHTML = LAB.noGroupHtml(); return; }
+  await loadSrc();
+  render();
+  await HERO.refreshFields();
+  HERO.poll(() => { HERO.refreshFields(); loadSrc(); }, 20000);
+});
+</script>
+</body>
+</html>

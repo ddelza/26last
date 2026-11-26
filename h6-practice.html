@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>해 보기</title>
+<link rel="stylesheet" href="common.css?v=8">
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="session.js?v=1"></script>
+<script src="lab.js?v=13"></script>
+<script src="hero.js?v=1"></script>
+<script>
+// ❻ 해 보기 — 고른 해결 방법 + 실천 기록(여러 번) + 달라진 점 + 도움 받은 기록. 사진은 캔바에 바로.
+let R, G, ban, base, LP, LH;
+
+HERO.boot({ heroStage: 3, title: '해 보기', subtitle: '고른 해결 방법을 학교에서 직접 해 보고, 과정과 달라진 점을 기록해요.' }).then(async r => {
+  R = r; ban = r.ban; G = r.group; base = r.base;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban, r.data, G));
+  if (!LAB.isHero(ban)) { document.getElementById('main').innerHTML = '<div class="card center">이 화면은 1·2학년 광수 HERO용이에요.</div>'; return; }
+  if (!G) { document.getElementById('main').innerHTML = LAB.noGroupHtml(); return; }
+  const main = document.getElementById('main');
+  main.innerHTML = LAB.groupBannerHtml(G, ban) + `
+  <div class="card">
+    <h2>🛠️ 퀘스트 ❻ 해결 방법 해 보기</h2>
+    <div class="q-do"><span><b>지금 할 일</b> 해 보고 기록하기</span><span><b>끝나면</b> 실천 기록</span>${R.cfg.period ? `<span><b>기간</b> ${LAB.esc(R.cfg.period)}</span>` : ''}</div>
+    <div class="tip" style="margin-top:10px">📸 <b>사진은 캔바 발표 자료에 바로 넣어요.</b> 사진에 친구 얼굴이 나오면 그 친구에게 먼저 물어봐요. 얼굴·이름표가 보이지 않는 사진이 좋아요.</div>
+  </div>
+
+  <div class="step-h"><div class="n">1</div><h2>우리가 고른 해결 방법<span class="sub">모둠이 함께 · 누구나 고칠 수 있어요</span></h2></div>
+  <div class="card" id="m1"></div>
+
+  <div class="step-h"><div class="n">2</div><h2>실천 기록<span class="sub">해 볼 때마다 한 줄씩 쌓아요</span></h2></div>
+  <div class="card" id="m2"></div>
+
+  <div class="step-h"><div class="n">3</div><h2>달라진 점<span class="sub">해 보기 전과 뒤를 비교해요</span></h2></div>
+  <div class="card" id="m3"></div>
+
+  <div class="step-h"><div class="n">🙋</div><h2>도움 받은 기록<span class="sub">도움카드로 선생님께 받은 도움 · 캔바에 들어가요</span></h2></div>
+  <div class="card" id="m4"></div>`;
+  const m1 = document.getElementById('m1'), m3 = document.getElementById('m3');
+  HERO.field(m1, { path: `${base}/method`, label: '어떤 방법을 골랐나요?', rows: 2, hint: '두 가지를 함께 했다면 둘 다 쓰고, 고르지 않은 것도 짧게 적으면 생각한 과정이 보여요.',
+    ph: "예) 의자 다리 덮개 + '소리 신호등' 카드 (고르지 않은 것: 쉬는 시간 음악 틀기)" });
+  HERO.field(m1, { path: `${base}/methodWhy`, label: '이 방법을 고른 이유', rows: 2, hint: '어떤 근거(숫자·본 것·들은 말) 때문에 이 방법을 골랐는지 써요.',
+    ph: '예) 원인 1위가 의자·책상 소리(38%)라, 소리 나는 곳을 직접 막는 게 가장 빠르다고 봤다.' });
+  LP = HERO.list(document.getElementById('m2'), { path: `${base}/practice`, empty: '아직 실천 기록이 없어요. 해 본 날마다 추가해요.', cols: [
+    { k: 'date', label: '📅 언제', ph: '예) 12/10 쉬는 시간', short: true },
+    { k: 'what', label: '📍 어디서·누구와·무엇을', ph: '예) 우리 교실에서 반 친구들과 의자 덮개 30개를 씌웠다. (함께한 사람은 이름 대신 역할로)' },
+    { k: 'note', label: '👀 해 보니', ph: '예) 덮개가 잘 벗겨져서 테이프로 다시 붙였다.' }] });
+  HERO.field(m3, { path: `${base}/change`, label: '달라진 점', rows: 3, hint: '해 보기 전과 뒤를 숫자로 비교해요. ⑤ 효과 확인 문항이 없으면 친구 반응, 관찰한 것, 성장 소감을 써요.',
+    ph: '예) 4개 교실 다시 설문(96명): 4점 이상 74% → 45%' });
+  HERO.field(m3, { path: `${base}/unexpected`, label: '예상과 달랐던 점', rows: 2, hint: '잘 안 된 것도 중요한 결과예요. 왜 그랬을지도 써요.',
+    ph: '예) 덮개는 효과가 컸지만, 신호등 카드는 일주일 뒤 아무도 안 봤다.' });
+  LH = HERO.list(document.getElementById('m4'), { path: `${base}/help`, empty: '아직 도움 받은 기록이 없어요.', cols: [
+    { k: 'date', label: '📅 날짜', ph: '예) 12/9', short: true },
+    { k: 'card', label: '🃏 도움카드 · 도와주신 분', ph: '예) 수학 선생님', short: true },
+    { k: 'help', label: '💡 받은 도움', ph: '예) 전후 비율을 다시 계산해 74%→45%가 맞는지 확인했다.' }] });
+  await Promise.all([HERO.refreshFields(), LP.refresh(), LH.refresh()]);
+  HERO.poll(() => { HERO.refreshFields(); LP.refresh(); LH.refresh(); });
+});
+</script>
+</body>
+</html>

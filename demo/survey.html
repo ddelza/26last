@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>광수에게 묻다 — 전교생 설문</title>
-<link rel="stylesheet" href="../common.css?v=7">
+<link rel="stylesheet" href="../common.css?v=8">
 <style>
 .prog { position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 5; }
 .prog-bar { height: 10px; background: #dee2e6; border-radius: 999px; overflow: hidden; }
@@ -20,6 +20,13 @@
 .prob .note { margin-top: 6px; line-height: 1.6; }
 .qtext { font-size: 1.12rem; font-weight: 800; line-height: 1.5; margin: 8px 0 4px; }
 .qmeta { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px; transition: color .2s; }
+.scale { margin: 4px 0 6px; }
+.sc-btns { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.sc { position: relative; }
+.sc input { position: absolute; opacity: 0; pointer-events: none; }
+.sc span { display: block; text-align: center; padding: 14px 0; border: 2px solid #dee2e6; border-radius: 12px; font-weight: 900; font-size: 1.15rem; cursor: pointer; background: #fff; }
+.sc input:checked + span { background: var(--stage, #0ca678); border-color: var(--stage, #0ca678); color: #fff; }
+.sc-ends { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-muted); margin-top: 6px; gap: 8px; }
 .qmeta.over { color: #e03131; font-weight: 800; }
 .opts { display: flex; flex-direction: column; gap: 8px; }
 .opt { display: flex; align-items: center; gap: 10px; border: 2px solid #e9ecef; border-radius: 12px; padding: 12px 14px; cursor: pointer; font-size: 0.95rem; }
@@ -48,8 +55,8 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=12"></script>
-<script src="../demo-seed.js?v=2"></script>
+<script src="../lab.js?v=13"></script>
+<script src="../demo-seed.js?v=3"></script>
 <script>
 let items = [], ans = {}, done = false, cur = -1, imgs = {}, preview = false, me;
 const S = LAB.STAGES[2];
@@ -97,7 +104,11 @@ window.go = function (i) {
   const showProb = LAB.showProb(o.show), showExtra = LAB.showExtra(o.show);
   const exImg = showExtra && imgs[it.ban] && imgs[it.ban][it.g] ? `<img src="${imgs[it.ban][it.g]}" alt="">` : '', exNote = showExtra && o.note ? `<div class="note">${LAB.nl2br(o.note)}</div>` : '';
   let body = '';
-  if (q.type === 'choice') {
+  if (q.type === 'scale') {
+    const sel = (a && a.sel) || [];
+    body = `<div class="scale"><div class="sc-btns">${[0, 1, 2, 3, 4, 5].map(j => `<label class="sc"><input type="radio" name="a" value="${j}" ${sel.includes(j) ? 'checked' : ''}><span>${j + 1}</span></label>`).join('')}</div>
+      <div class="sc-ends"><span>1점 · ${LAB.esc(q.lo || '')}</span><span>6점 · ${LAB.esc(q.hi || '')}</span></div></div>`;
+  } else if (q.type === 'choice') {
     const sel = (a && a.sel) || [];
     body = '<div class="opts">' + q.options.map((op, j) => `<label class="opt"><input type="${q.multi ? 'checkbox' : 'radio'}" name="a" value="${j}" ${sel.includes(j) ? 'checked' : ''}><span>${LAB.esc(op)}</span></label>`).join('') +
       (q.etc ? `<label class="opt"><input type="${q.multi ? 'checkbox' : 'radio'}" name="a" value="etc" ${a && a.etc ? 'checked' : ''}><span>기타 (직접 쓰기)</span></label>
@@ -112,7 +123,7 @@ window.go = function (i) {
       <div class="qno">Q${cur + 1} · ${LAB.gradeOf(it.ban)}학년이 묻는 질문${preview ? ` · ${LAB.esc(LAB.banShort(it.ban))} ${o.no}모둠` : ''}</div>
       ${showProb ? `<div class="prob">📌 ${LAB.gradeOf(it.ban)}학년 모둠이 고민하는 문제<b>${LAB.esc(o.title)}</b>${exImg}${exNote}</div>` : (exImg || exNote ? `<div class="prob">📝 알아 두면 좋은 상황${exImg}${exNote}</div>` : '')}
       <div class="qtext">${LAB.nl2br(q.q)}</div>
-      <div class="qmeta">${q.type === 'choice' ? (q.multi ? (q.max ? `☑️ 가장 가까운 것을 <b>${q.max}개까지</b> 골라요` : '☑️ 해당하는 것을 <b>모두</b> 골라요') : '🔘 하나만 골라요') : '✍️ 직접 써 주세요'}</div>
+      <div class="qmeta">${q.type === 'scale' ? '🔢 1~6점 중 하나를 골라요' : q.type === 'choice' ? (q.multi ? (q.max ? `☑️ 가장 가까운 것을 <b>${q.max}개까지</b> 골라요` : '☑️ 해당하는 것을 <b>모두</b> 골라요') : '🔘 하나만 골라요') : '✍️ 직접 써 주세요'}</div>
       ${body}
     </div>
     <div class="nav"><button class="btn ghost prev" onclick="go(${cur - 1})" ${cur === 0 ? 'disabled' : ''}>← 이전</button>
@@ -159,7 +170,7 @@ window.submitAll = async function () {
     <button class="btn ghost" onclick="go(0)">내 답 다시 보기</button><a class="btn secondary" href="index.html">처음 화면으로</a></div>`;
 };
 
-LAB.start({ stage: 3, title: '광수에게 묻다', subtitle: '1·2·3학년 모둠이 만든 질문에 함께 답하는 전교생 설문이에요.' }).then(async () => {
+LAB.start({ stage: 3, heroStage: 2, title: '광수에게 묻다', subtitle: '1·2·3학년 모둠이 만든 질문에 함께 답하는 전교생 설문이에요.' }).then(async () => {
   me = LAB.student.id; preview = !!LAB.student.isTeacher;
   const [sc, fin] = await Promise.all([LAB.get('survey/_config'), LAB.get('final')]);
   items = LAB.surveyItems(fin, preview && LAB.qs('test') === '1');

@@ -6,7 +6,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>광수 HERO · 광수중 학기말 프로젝트</title>
-<link rel="stylesheet" href="../common.css?v=7">
+<link rel="stylesheet" href="../common.css?v=8">
 <style>
 .step { display: none; } .step.active { display: block; }
 .hero { text-align: center; padding: 26px 8px 18px; }
@@ -37,6 +37,7 @@
 .g-btn:disabled { opacity: .6; }
 .foot { text-align: center; margin-top: 26px; font-size: 0.76rem; }
 .foot a { color: var(--text-muted); }
+.stg-h { font-size: 1rem; margin: 6px 0 10px; } .stg-h .dc-muted { font-size: 0.75rem; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -89,8 +90,8 @@
 </div>
 
 <script src="../session.js?v=1"></script>
-<script src="../lab.js?v=12"></script>
-<script src="../demo-seed.js?v=2"></script>
+<script src="../lab.js?v=13"></script>
+<script src="../demo-seed.js?v=3"></script>
 <script src="../help-teachers.js?v=1"></script>
 <script>
 const DB_URL = LAB.DB_URL;
@@ -134,14 +135,24 @@ async function enter(s) {
   if (s.isTeacher) return;
   // 내 진행 상황 표시 (실패해도 화면은 그대로)
   try {
-    const ban = LAB.myBan();
+    const ban = LAB.myBan(), hero = LAB.isHero(ban);
     const [mine, data, sc, resp] = await Promise.all([
-      LAB.get(`problems/${ban}`), LAB.loadGroups(ban), LAB.get('survey/_config'), LAB.get(`resp/${s.id}/done`)]);
+      hero ? null : LAB.get(`problems/${ban}`), LAB.loadGroups(ban), LAB.get('survey/_config'), LAB.get(`resp/${s.id}/done`)]);
     const g = LAB.groupOf(data, s.id);
     const st = {};
-    const nMine = LAB.problemsBy(mine, s.id).length;
-    st['s1-board.html'] = nMine ? [`✓ ${nMine}개 올렸어요`, 1] : ['아직 안 올림', 0];
-    st['s1-pick.html'] = g ? ['✓ ' + g.no + '모둠', 1] : data.conf.open ? ['🟢 신청 중!', 0] : data.groups.length ? ['모둠 없음', 0] : ['준비 중', 0];
+    if (hero) {
+      const H = g ? g.hero || {} : {};
+      st['h1-problem.html'] = !g ? ['모둠 준비 중', 0] : g.hasArea ? ['✓ ' + g.title.slice(0, 14), 1] : (H.q1 && H.q1[s.id]) ? ['✓ 내 문제 씀', 0] : ['시작!', 0];
+      if (g) {
+        st['h5-declare.html'] = g.heroName ? ['✓ ' + g.heroName, 1] : (H.declare ? ['쓰는 중', 0] : ['결과 읽은 뒤', 0]);
+        const np = Object.keys(H.practice || {}).length; st['h6-practice.html'] = np ? [`✓ 기록 ${np}개`, 1] : ['선언 뒤', 0];
+        const nc = Object.keys(H.canva || {}).length; st['h7-canva.html'] = nc ? [`${nc}칸 씀`, nc >= 20 ? 1 : 0] : ['실천 뒤', 0];
+      }
+    } else {
+      const nMine = LAB.problemsBy(mine, s.id).length;
+      st['s1-board.html'] = nMine ? [`✓ ${nMine}개 올렸어요`, 1] : ['아직 안 올림', 0];
+      st['s1-pick.html'] = g ? ['✓ ' + g.no + '모둠', 1] : data.conf.open ? ['🟢 신청 중!', 0] : data.groups.length ? ['모둠 없음', 0] : ['준비 중', 0];
+    }
     if (g) {
       const fin = await LAB.get(`final/${ban}/${g.id}/out`);
       st['s2-question.html'] = fin && fin.submitted ? ['✓ 내보냄', 1] : ['진행 중', 0];
@@ -151,16 +162,25 @@ async function enter(s) {
     renderStages(st);
   } catch (e) {}
 }
-function renderStages(st) {
-  document.getElementById('stages').innerHTML = LAB.STAGES.map(S => `
+function stagesHtml(list, st, q) {
+  return list.map(S => `
     <div class="stage" style="--c:${S.color};--s:${S.soft}">
-      <div class="stage-head"><div class="stage-icon">${S.icon}</div><div><div class="no">${S.no}단계</div><h3>${S.name}</h3></div></div>
+      <div class="stage-head"><div class="stage-icon">${S.icon}</div><div><div class="no">${S.no}단계${S.q ? ' · ' + S.q : ''}</div><h3>${S.name}</h3></div></div>
       <div class="stage-goal">${S.goal}</div>
       <div class="stage-links">${S.pages.map(p => {
         const x = st[p.href];
-        return `<a href="${p.href}">${p.label}${x ? `<span class="st${x[1] ? ' done' : ''}">${LAB.esc(x[0])}</span>` : '<span>→</span>'}</a>`;
+        return `<a href="${p.href}${q || ''}">${p.label}${x ? `<span class="st${x[1] ? ' done' : ''}">${LAB.esc(x[0])}</span>` : '<span>→</span>'}</a>`;
       }).join('')}</div>
     </div>`).join('');
+}
+function renderStages(st) {
+  const s = LAB.student, el = document.getElementById('stages');
+  if (s && s.isTeacher) {
+    el.innerHTML = '<h3 class="stg-h">🦸 1·2학년 광수 HERO <span class="dc-muted">교사 보기는 각 화면 위 막대에서 반·모둠을 골라요</span></h3>' + stagesHtml(LAB.HERO_STAGES, st, '?ban=1-1') +
+      '<h3 class="stg-h" style="margin-top:22px">🎓 3학년</h3>' + stagesHtml(LAB.STAGES, st);
+    return;
+  }
+  el.innerHTML = stagesHtml(LAB.stagesFor(s ? LAB.myBan() : '3-1'), st);
 }
 document.getElementById('inputId').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('inputName').focus(); } });
 document.getElementById('inputName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); onLogin(); } });
