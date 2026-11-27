@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO 그룹 명 정하기</title>
+<link rel="stylesheet" href="common.css?v=8">
+<style>
+.rules { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.8rem; line-height: 1.55; }
+.rules > div { background: #f8f9fa; border-radius: 12px; padding: 10px 12px; }
+.rules b { display: block; margin-bottom: 2px; }
+@media (max-width: 560px) { .rules { grid-template-columns: 1fr; } }
+.cand { display: flex; align-items: center; gap: 8px; background: #fff; border: 1.5px solid #dee2e6; border-radius: 12px; padding: 8px 12px; margin-bottom: 6px; }
+.cand.win { border-color: #7048e8; background: #f3f0ff; }
+.cand .nm { font-weight: 900; font-size: 1rem; flex: 1; }
+.cand .why { display: block; font-weight: 400; font-size: 0.76rem; color: #868e96; }
+.cand .v { font-size: 0.8rem; color: #495057; white-space: nowrap; }
+.cand button { white-space: nowrap; }
+.final { text-align: center; background: #f3f0ff; border-radius: 14px; padding: 12px; }
+.final b { display: block; font-size: 1.4rem; color: #5f3dc4; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div id="lab-head"></div>
+  <div id="main"><div class="loading-state">불러오는 중...</div></div>
+</div>
+
+<script src="session.js?v=1"></script>
+<script src="lab.js?v=14"></script>
+<script src="hero.js?v=1"></script>
+<script>
+// 3학년 2단계 ② HERO 그룹 명 정하기 — 후보(한 사람 1개) → 투표 → 확정.  저장: hero/{반}/{모둠id}/ names · vote · heroName (1·2학년 ❺와 같은 구조)
+let G, ban, base, me;
+const E = LAB.esc;
+
+function render() {
+  document.getElementById('main').innerHTML = LAB.groupBannerHtml(G, ban) + `
+  <div class="card">
+    <h2>🦸 우리 HERO 그룹 명 정하기</h2>
+    <div class="q-do"><span><b>지금 할 일</b> 이름 후보 내고 투표하기</span><span><b>끝나면</b> HERO 그룹 명</span></div>
+    <p class="hint" style="margin:10px 0 0">각자 1개씩 후보를 내고 → 모둠원이 투표하고 → 가장 많이 받은 이름을 확정해요.</p>
+  </div>
+  <div class="card">
+    <div class="rules">
+      <div><b>✍️ 이렇게 지어요: 궁극의 목적 + 개성</b>① 이 문제가 사라지면 우리 삶은 어떤 모습일까?<br>② 우리 모둠다운 말 하나(좋아하는 것·분위기)<br>③ 합치기: 2~8글자, 소리 내어 읽기 쉽게 (HERO는 붙여도, 안 붙여도 돼요)</div>
+      <div><b>🎤 무대 테스트</b>12월 31일 무대에서 사회자가 이 이름을 불러도 우리 모둠이 당당한가요?<br><br><b>💡 예시</b>교실 소음 → 볼륨 조율단 · 급식 → 급식 감사 요정 · 수면 부족 → 꿀잠 수호대</div>
+      <div style="grid-column:1/-1"><b>🙅 이런 이름은 아쉬워요</b>방법만 보이는 이름(쓰레기 줍기단, 소음 줄이기 팀) · 너무 유치하거나 딱딱한 이름 · 친구 이름·별명, 비하하는 말, 특정 사람 겨냥 · 학년·반이 드러나는 이름</div>
+    </div>
+    <div id="nameFinal" style="margin-top:12px"></div>
+    <h3 style="margin:14px 0 6px">후보와 투표</h3>
+    <div id="cands"></div>
+    <div style="margin-top:10px">
+      <label class="field-label" for="myName">내 후보 이름 <span class="dc-muted">(한 사람 1개, 다시 내면 바뀌어요)</span></label>
+      <input type="text" id="myName" maxlength="12" placeholder="예) 꿀잠 수호대">
+      <input type="text" id="myWhy" maxlength="60" placeholder="뜻 한 줄 (예: 모두가 푹 자고 오는 학교 + 귀여운 느낌)" style="margin-top:6px">
+      <div class="error-msg" id="nErr"></div>
+      <button class="btn small" id="nSave" style="margin-top:8px">💡 후보 내기</button>
+    </div>
+  </div>`;
+  document.getElementById('nSave').onclick = saveName;
+}
+
+function paintNames(names, votes, heroName) {
+  names = names || {}; votes = votes || {};
+  const cnt = {}; Object.values(votes).forEach(v => cnt[v] = (cnt[v] || 0) + 1);
+  const ids = Object.keys(names).sort((a, b) => (cnt[b] || 0) - (cnt[a] || 0) || names[a].at - names[b].at);
+  const top = ids.length ? cnt[ids[0]] || 0 : 0, myVote = votes[me];
+  const mine = G.members.some(m => m.id === me), canFix = LAB.student.isTeacher || mine;
+  document.getElementById('cands').innerHTML = ids.length ? ids.map(id => {
+    const n = names[id], who = (G.members.find(m => m.id === id) || {}).name || n.byName || '';
+    return `<div class="cand ${top && cnt[id] === top ? 'win' : ''}"><div class="nm">${E(n.name)}<span class="why">${E(n.why || '')} · ${E(who)}</span></div>
+      <span class="v">🗳 ${cnt[id] || 0}표</span>
+      ${LAB.student.isTeacher ? '' : `<button class="btn small ${myVote === id ? '' : 'ghost'}" data-vote="${id}">${myVote === id ? '✓ 내 표' : '투표'}</button>`}
+      ${canFix ? `<button class="btn small secondary" data-fix="${id}">✅ 확정</button>` : ''}</div>`;
+  }).join('') : '<div class="empty-state" style="padding:10px">아직 후보가 없어요. 각자 하나씩 내 보세요!</div>';
+  document.getElementById('nameFinal').innerHTML = heroName && heroName.name
+    ? `<div class="final">🦸 우리 HERO 그룹 명<b>${E(heroName.name)}</b><span class="dc-muted" style="font-size:0.75rem">${E(heroName.byName || '')} 확정 · ${LAB.fmtTime(heroName.at)}</span></div>`
+    : '<div class="hint">모두 투표했으면 모둠이 함께 보면서 <b>✅ 확정</b>을 눌러요. (확정한 뒤에도 다시 고를 수 있어요)</div>';
+  document.querySelectorAll('[data-vote]').forEach(b => b.onclick = async () => { await LAB.put(`${base}/vote/${me}`, b.dataset.vote); refreshNames(); });
+  document.querySelectorAll('[data-fix]').forEach(b => b.onclick = async () => {
+    const n = names[b.dataset.fix]; if (!confirm(`"${n.name}"(으)로 우리 HERO 그룹 명을 확정할까요?\n무대 테스트를 통과했는지 한 번 더 생각해 봐요!`)) return;
+    const H0 = HERO.me(); await LAB.put(`${base}/heroName`, { name: n.name, why: n.why || '', by: H0.id, byName: H0.name, at: LAB.TS });
+    refreshNames();
+  });
+}
+async function refreshNames() {
+  const [names, votes, hn] = await Promise.all([LAB.get(`${base}/names`), LAB.get(`${base}/vote`), LAB.get(`${base}/heroName`)]);
+  paintNames(names, votes, hn);
+}
+async function saveName() {
+  const n = document.getElementById('myName').value.trim(), w = document.getElementById('myWhy').value.trim(), err = document.getElementById('nErr');
+  err.classList.remove('show');
+  if (LAB.student.isTeacher) { err.textContent = '교사 보기에서는 후보를 내지 않아요.'; return err.classList.add('show'); }
+  if (n.length < 2 || n.length > 12) { err.textContent = '이름은 2~8글자 정도로 써 주세요.'; return err.classList.add('show'); }
+  if (/[1-3]\s*학년|\d\s*반/.test(n)) { err.textContent = '학년·반이 드러나는 이름은 쓰지 않아요.'; return err.classList.add('show'); }
+  try {
+    await LAB.put(`${base}/names/${me}`, { name: n, why: w, byName: LAB.student.name, at: LAB.TS });
+    document.getElementById('myName').value = ''; document.getElementById('myWhy').value = '';
+    refreshNames();
+  } catch (e) { err.textContent = '저장하지 못했어요. 다시 눌러 주세요.'; err.classList.add('show'); }
+}
+
+HERO.boot({ stage: 2, title: 'HERO 그룹 명 정하기', subtitle: '12월 31일 무대에서 불릴 우리 모둠의 이름을 함께 지어요.' }).then(async r => {
+  ban = r.ban; G = r.group; base = r.base; me = LAB.student.id;
+  if (LAB.student.isTeacher) document.getElementById('lab-head').insertAdjacentHTML('beforeend', LAB.teacherPickerHtml(ban, r.data, G));
+  if (LAB.isHero(ban)) { document.getElementById('main').innerHTML = '<div class="card center">1·2학년은 <a href="h5-declare.html">❺ 해결할 문제 선언 · HERO 그룹 명</a>에서 그룹 이름을 정해요.</div>'; return; }
+  if (!G) { document.getElementById('main').innerHTML = LAB.noGroupHtml(); return; }
+  render(); refreshNames();
+  HERO.poll(refreshNames);
+});
+</script>
+</body>
+</html>

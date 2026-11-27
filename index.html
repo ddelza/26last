@@ -88,7 +88,7 @@
 </div>
 
 <script src="session.js?v=1"></script>
-<script src="lab.js?v=13"></script>
+<script src="lab.js?v=14"></script>
 <script src="help-teachers.js?v=1"></script>
 <script>
 const DB_URL = LAB.DB_URL;
@@ -153,6 +153,7 @@ async function enter(s) {
     if (g) {
       const fin = await LAB.get(`final/${ban}/${g.id}/out`);
       st['s2-question.html'] = fin && fin.submitted ? ['✓ 내보냄', 1] : ['진행 중', 0];
+      if (!hero) { const hn = await LAB.get(`hero/${ban}/${g.id}/heroName`); st['s2-name.html'] = hn && hn.name ? ['✓ ' + hn.name, 1] : ['정하는 중', 0]; }
     }
     st['survey.html'] = resp ? ['✓ 참여 완료', 1] : (sc && sc.open) ? ['🟢 지금 참여!', 0] : ['아직 열리지 않음', 0];
     st['s3-result.html'] = (sc && sc.results) ? ['🟢 결과 공개', 0] : ['설문 뒤 공개', 0];
